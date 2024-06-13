@@ -2,24 +2,6 @@ from flask import Flask, render_template, request, redirect, session, flash, url
 from werkzeug.utils import secure_filename
 import os
 from forms import UploadForm
-#import dash_core_components as dcc
-#import dash_html_components as html
-#from dash.dependencies import Input, Output, State
-import pandas as pd
-import time
-
-#from app.dashboards.utils import components
-
-class Jogo:
-    def __init__(self, nome, categoria, console):
-        self.nome = nome
-        self.categoria = categoria
-        self.console = console
-
-jogo1 = Jogo('Tetris', 'Puzzle', 'Atari')
-jogo2 = Jogo('God of War', 'Hack n Slash', 'PS2')
-jogo3 = Jogo('Mortal Kombat', 'Luta', 'PS2')
-lista = [jogo1, jogo2, jogo3]
 
 app = Flask(__name__)
 app.secret_key = 'alura'
@@ -27,7 +9,7 @@ app.config['UPLOAD_FOLDER'] = 'uploads'
 
 @app.route('/')
 def index():
-    return render_template('lista.html', titulo='Jogos', jogos=lista)
+    return render_template('home.html', titulo='Bem-vindo ao Certification')
 
 @app.route('/login')
 def login():
@@ -60,6 +42,5 @@ def upload():
         return redirect(url_for('upload'))
     files = os.listdir(app.config['UPLOAD_FOLDER'])
     return render_template('upload.html', form=form, files=files)
-
 
 app.run(debug=True)
