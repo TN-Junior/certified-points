@@ -1,38 +1,145 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Website</title>
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
-</head>
-<body>
-    <!-- Navbar -->
-    <nav class="navbar navbar-expand-lg navbar-light bg-light">
-        <a class="navbar-brand" href="#">Brand</a>
-        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-            <span class="navbar-toggler-icon"></span>
-        </button>
-        <div class="collapse navbar-collapse" id="navbarNav">
-            <ul class="navbar-nav">
-                <li class="nav-item">
-                    <a class="nav-link" href="/">Home</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="/login">Login</a>
-                </li>
-            </ul>
+{% extends 'bootstrap/base.html' %}
+
+{% block title %}
+    {% if title %}
+    {{ title }} - FinData
+    {% else %}
+    Bem-vindo ao FINDATA
+{% endif %}
+{% endblock %}
+
+{% block styles %}
+{{ super() }}
+    <style>
+    .navbar-default {
+        background-color: #0f3057;
+        border-color: #0f3057;
+    }
+    /* Title */
+    .navbar-default .navbar-brand {
+        color: #FFF;
+    }
+    .navbar-default .navbar-brand:hover,
+    .navbar-default .navbar-brand:focus {
+        color: #FFF;
+    }
+    /* Link */
+    .navbar-default .navbar-nav > li > a {
+        color: #FFF;
+    }
+    .navbar-default .navbar-nav > li > a:hover,
+    .navbar-default .navbar-nav > li > a:focus {
+        color: #FFF;
+    }
+    .navbar-default .navbar-nav > .active > a,
+    .navbar-default .navbar-nav > .active > a:hover,
+    .navbar-default .navbar-nav > .active > a:focus {
+        color: #555;
+        background-color: #E7E7E7;
+    }
+    .navbar-default .navbar-nav > .open > a,
+    .navbar-default .navbar-nav > .open > a:hover,
+    .navbar-default .navbar-nav > .open > a:focus {
+        color: #555;
+        background-color: #D5D5D5;
+    }
+    /* Caret */
+    .navbar-default .navbar-nav > .dropdown > a .caret {
+        border-top-color: #777;
+        border-bottom-color: #777;
+    }
+    .navbar-default .navbar-nav > .dropdown > a:hover .caret,
+    .navbar-default .navbar-nav > .dropdown > a:focus .caret {
+        border-top-color: #333;
+        border-bottom-color: #333;
+    }
+    .navbar-default .navbar-nav > .open > a .caret,
+    .navbar-default .navbar-nav > .open > a:hover .caret,
+    .navbar-default .navbar-nav > .open > a:focus .caret {
+        border-top-color: #555;
+        border-bottom-color: #555;
+    }
+    /* Mobile version */
+    .navbar-default .navbar-toggle {
+        border-color: #DDD;
+    }
+    .navbar-default .navbar-toggle:hover,
+    .navbar-default .navbar-toggle:focus {
+        background-color: #DDD;
+    }
+    .navbar-default .navbar-toggle .icon-bar {
+        background-color: #CCC;
+    }
+    @media (max-width: 767px) {
+        .navbar-default .navbar-nav .open .dropdown-menu > li > a {
+            color: #777;
+        }
+        .navbar-default .navbar-nav .open .dropdown-menu > li > a:hover,
+        .navbar-default .navbar-nav .open .dropdown-menu > li > a:focus {
+              color: #333;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block navbar %}
+    <nav class="navbar navbar-default">
+        <div class="container">
+            <div class="navbar-header">
+                <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1" aria-expanded="false">
+                    <span class="sr-only">Toggle navigation</span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                </button>
+                <a class="navbar-brand" href="{{ url_for('main.index') }}"><i>FINDATA</i></a>
+            </div>
+            <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+                <ul class="nav navbar-nav navbar-right">
+                    {% if current_user.is_anonymous %}
+                    <li><a href="{{ url_for('auth.login') }}"></a></li>
+                    {% else %}
+                    <li><a href="{{ url_for('auth.logout') }}">Logout</a></li>
+                    {% endif %}
+                </ul>
+            </div>
         </div>
     </nav>
+{% endblock %}
 
-    <div class="container mt-5">
-        <!-- Content will be injected here based on the route -->
-        {% block conteudo %}
-        {% endblock %}
+{% block content %}
+    <div class="container">
+        {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            {% for message in messages %}
+            <div class="alert alert-info" role="alert">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        {# application content needs to be provided in the app_content block #}
+        {% block app_content %}{% endblock %}
     </div>
+{% endblock %}
 
-    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
-</body>
-</html>
+{% block conteudo %}
+        <table class="table table-striped table-responsive table-bordered">
+            <thead class="thead-default">
+                <tr>
+                    <th>Nome</th>
+                    <th>Categoria</th>
+                    <th>Console</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for jogo in jogos %}
+                <tr>
+                    <td>{{ jogo.nome }}</td>
+                    <td>{{ jogo.categoria }}</td>
+                    <td>{{ jogo.console }}</td>
+                </tr>
+                {% endfor %}
+
+            </tbody>
+        </table>
+{% endblock %}
