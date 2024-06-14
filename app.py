@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, session, flash, url_for
+from flask import Flask, render_template, request, redirect, session, flash, url_for, send_from_directory
 from werkzeug.utils import secure_filename
 import os
 from forms import UploadForm
@@ -76,4 +76,17 @@ def upload():
     files = os.listdir(app.config['UPLOAD_FOLDER'])
     return render_template('upload.html', form=form, files=files)
 
+@app.route('/uploads/<filename>')
+def uploaded_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+@app.route('/delete/<filename>', methods=['POST'])
+def delete_file(filename):
+    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    if os.path.exists(file_path):
+        os.remove(file_path)
+        flash(f'O arquivo {filename} foi deletado com sucesso!')
+    else:
+        flash(f'O arquivo {filename} não foi encontrado.')
+    return redirect(url_for('upload'))
 app.run(debug=True)
