@@ -90,4 +90,17 @@ def delete_file(filename):
     else:
         flash(f'O arquivo {filename} não foi encontrado.')
     return redirect(url_for('upload'))
+
+@app.route('/signup')
+def signup():
+    return render_template('signup.html')
+
+@app.route('/cadastrar', methods=['POST'])
+def cadastrar():
+    usuario = request.form['usuario']
+    email = request.form['email']
+    senha = request.form['senha']
+    # Aqui você deve adicionar a lógica para salvar o usuário no banco de dados
+    flash(f'Usuário {usuario} cadastrado com sucesso!')
+    return redirect('/login')
 app.run(debug=True)
