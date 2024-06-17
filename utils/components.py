@@ -1,6 +1,6 @@
 # utils/components.py
-
-""" from dash import html, dcc
+'''
+ from dash import html, dcc
 import dash_bootstrap_components as dbc
 
 findata = html.I("Certifications")
@@ -78,4 +78,5 @@ footer = html.Footer(
     className="desktop-footer",
     style={'height': 150, 'backgroundColor': '#e7e7de',
            'display': 'flex'}
-)"""
+)
+'''
