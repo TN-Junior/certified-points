@@ -3,10 +3,28 @@ from werkzeug.utils import secure_filename
 from urllib.parse import quote as url_quote
 import os
 from forms import UploadForm
+from flask_sqlalchemy import SQLAlchemy
+from dotenv import load_dotenv
+import pymysql
 
 app = Flask(__name__)
-app.secret_key = 'alura'
-app.config['UPLOAD_FOLDER'] = 'uploads'
+app.secret_key = os.getenv('SECRET_KEY')
+app.config['UPLOAD_FOLDER'] = os.getenv('UPLOAD_FOLDER')
+
+# Configuração da conexão com o banco de dados MySQL
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+db = SQLAlchemy(app)
+
+
+# Modelos de dados
+class Certificado(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    curso = db.Column(db.String(100), nullable=False)
+    carga_horaria = db.Column(db.Integer, nullable=False)
+    pontos = db.Column(db.Integer, nullable=False)
+    filename = db.Column(db.String(200), nullable=False)
 
 def calcular_pontos(certificado):
     pontos = 0
