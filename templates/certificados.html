@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>CertiFlow</title>
+    <title>Certificado Enviado</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='bootstrap.css') }}">
     <style>
         .navbar-custom {
@@ -79,26 +79,13 @@
             {% endif %}
         {% endwith %}
 
-        <h2>Upload Certificate</h2>
-
-        <form method="POST" enctype="multipart/form-data">
-            {{ form.hidden_tag() }}
-            <div class="form-group">
-                {{ form.curso.label(class="form-label") }}
-                {{ form.curso(class="form-control") }}
-            </div>
-            <div class="form-group">
-                {{ form.carga_horaria.label(class="form-label") }}
-                {{ form.carga_horaria(class="form-control") }}
-            </div>
-            <div class="form-group">
-                {{ form.certificate.label(class="form-label") }}
-                {{ form.certificate(class="form-control") }}
-            </div>
-            <div class="form-group">
-                {{ form.submit(class="btn btn-primary") }}
-            </div>
-        </form>
+        <h2>Detalhes do Certificado Enviado</h2>
+        <ul>
+            <li><strong>Curso:</strong> {{ certificado.curso }}</li>
+            <li><strong>Carga Horária:</strong> {{ certificado.carga_horaria }}</li>
+            <li><strong>Pontos:</strong> {{ certificado.pontos }}</li>
+            <li><strong>Certificado:</strong> <a href="{{ url_for('uploaded_file', filename=certificado.filename) }}">{{ certificado.filename }}</a></li>
+        </ul>
     </div>
 
     <footer class="footer">

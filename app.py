@@ -41,6 +41,7 @@ def calcular_pontos(certificado):
 
     return pontos
 
+
 @app.route('/')
 def index():
     return render_template('home.html', titulo='Bem-vindo ao Certification')
@@ -69,13 +70,29 @@ def logout():
 def upload():
     form = UploadForm()
     if form.validate_on_submit():
+        curso = form.curso.data
+        carga_horaria = form.carga_horaria.data
+        pontos = calcular_pontos({'nome': curso, 'horas': carga_horaria})
         file = form.certificate.data
         filename = secure_filename(file.filename)
         file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+        session['certificado'] = {
+            'curso': curso,
+            'carga_horaria': carga_horaria,
+            'pontos': pontos,
+            'filename': filename
+        }
         flash('Certificado enviado com sucesso!')
+        return redirect(url_for('certificados'))
+    return render_template('upload.html', form=form)
+
+@app.route('/certificados')
+def certificados():
+    certificado = session.get('certificado')
+    if not certificado:
+        flash('Nenhum certificado enviado.')
         return redirect(url_for('upload'))
-    files = os.listdir(app.config['UPLOAD_FOLDER'])
-    return render_template('upload.html', form=form, files=files)
+    return render_template('certificados.html', certificado=certificado)
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
@@ -103,4 +120,6 @@ def cadastrar():
     # Aqui você deve adicionar a lógica para salvar o usuário no banco de dados
     flash(f'Usuário {usuario} cadastrado com sucesso!')
     return redirect('/login')
-app.run(debug=True)
+
+if __name__ == '__main__':
+    app.run(debug=True)
