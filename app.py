@@ -9,6 +9,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import pymysql
 
 app = Flask(__name__)
+load_dotenv()
 app.secret_key = os.getenv('SECRET_KEY')
 app.config['UPLOAD_FOLDER'] = os.getenv('UPLOAD_FOLDER')
 
@@ -27,16 +28,22 @@ class Certificado(db.Model):
     pontos = db.Column(db.Integer, nullable=False)
     filename = db.Column(db.String(200), nullable=False)
 
-class usuarios(db.Model):
+class Usuario(db.Model):
+    __tablename__ = 'usuarios'
     id = db.Column(db.Integer, primary_key=True)
-    usuario = db.Column(db.String(80), unique=True, nullable=False)
+    matricula = db.Column(db.String(80), unique=True, nullable=False)
+    nome = db.Column(db.String(80), nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
+    pontuacao = db.Column(db.Integer, default=0)
     senha = db.Column(db.String(120), nullable=False)
+
+    def __repr__(self):
+        return f'<Usuario {self.nome}>'
 
     def __repr__(self):
         return f'<Usuario {self.usuario}>'
 
-def calcular_pontos(certificado):
+'''def calcular_pontos(certificado):
     pontos = 0
     nome = certificado['nome']
     horas = certificado['horas']
@@ -67,7 +74,7 @@ def calcular_pontos(certificado):
         if pontos > 15:
             pontos = 15
 
-    return pontos
+    return pontos'''
 
 
 @app.route('/')
@@ -78,14 +85,18 @@ def index():
 def login():
     return render_template('login.html')
 
-@app.route('/autenticar', methods=['POST',])
+@app.route('/autenticar', methods=['POST'])
 def autenticar():
-    if 'ggie' == request.form['senha']:
-        session['usuario_logado'] = request.form['usuario']
-        flash(session['usuario_logado'] + ' logado com sucesso!')
+    usuario = request.form['usuario']
+    senha = request.form['senha']
+    usuario_db = Usuario.query.filter_by(matricula=usuario).first()
+
+    if usuario_db and check_password_hash(usuario_db.senha, senha):
+        session['usuario_logado'] = usuario
+        flash(usuario + ' logado com sucesso!')
         return redirect('/upload')
     else:
-        flash('Usuário não logado.')
+        flash('Usuário ou senha inválidos.')
         return redirect('/login')
 
 @app.route('/logout')
@@ -142,17 +153,18 @@ def signup():
 
 @app.route('/cadastrar', methods=['POST'])
 def cadastrar():
-    usuario = request.form['usuario']
+    matricula = request.form['matricula']
+    nome = request.form['nome']
     email = request.form['email']
     senha = request.form['senha']
-    hashed_senha = generate_password_hash(senha, method='sha256')
+    hashed_senha = generate_password_hash(senha, method='scrypt')
 
-    novo_usuario = Usuario(usuario=usuario, email=email, senha=hashed_senha)
+    novo_usuario = Usuario(matricula=matricula, nome=nome, email=email, senha=hashed_senha)
 
     try:
         db.session.add(novo_usuario)
         db.session.commit()
-        flash(f'Usuário {usuario} cadastrado com sucesso!')
+        flash(f'Usuário {nome} cadastrado com sucesso!')
         return redirect('/login')
     except Exception as e:
         db.session.rollback()
@@ -160,4 +172,6 @@ def cadastrar():
         return redirect('/signup')
 
 if __name__ == '__main__':
+    with app.app_context():
+        db.create_all()
     app.run(debug=True)
