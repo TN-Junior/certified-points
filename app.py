@@ -5,6 +5,7 @@ import os
 from forms import UploadForm
 from flask_sqlalchemy import SQLAlchemy
 from dotenv import load_dotenv
+from werkzeug.security import generate_password_hash, check_password_hash
 import pymysql
 
 app = Flask(__name__)
@@ -25,6 +26,15 @@ class Certificado(db.Model):
     carga_horaria = db.Column(db.Integer, nullable=False)
     pontos = db.Column(db.Integer, nullable=False)
     filename = db.Column(db.String(200), nullable=False)
+
+class usuarios(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    usuario = db.Column(db.String(80), unique=True, nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    senha = db.Column(db.String(120), nullable=False)
+
+    def __repr__(self):
+        return f'<Usuario {self.usuario}>'
 
 def calcular_pontos(certificado):
     pontos = 0
@@ -135,9 +145,19 @@ def cadastrar():
     usuario = request.form['usuario']
     email = request.form['email']
     senha = request.form['senha']
-    # Aqui você deve adicionar a lógica para salvar o usuário no banco de dados
-    flash(f'Usuário {usuario} cadastrado com sucesso!')
-    return redirect('/login')
+    hashed_senha = generate_password_hash(senha, method='sha256')
+
+    novo_usuario = Usuario(usuario=usuario, email=email, senha=hashed_senha)
+
+    try:
+        db.session.add(novo_usuario)
+        db.session.commit()
+        flash(f'Usuário {usuario} cadastrado com sucesso!')
+        return redirect('/login')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Erro ao cadastrar usuário: {str(e)}')
+        return redirect('/signup')
 
 if __name__ == '__main__':
     app.run(debug=True)
