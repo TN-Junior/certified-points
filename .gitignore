@@ -1,6 +1,6 @@
 # app.db
-app/dashboards/_datasets/stn/mapbox_token.txt
-app/dashboards/_datasets/
+#app/dashboards/_datasets/stn/mapbox_token.txt
+#app/dashboards/_datasets/
 
 # pycharm
 .idea/
