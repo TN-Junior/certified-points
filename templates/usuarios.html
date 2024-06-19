@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <title>Usuários</title>
+  </head>
+  <body>
+    <h1>Usuários</h1>
+    <table>
+      <tr>
+        <th>ID</th>
+        <th>Matrícula</th>
+        <th>Nome</th>
+        <th>Email</th>
+        <th>Ações</th>
+      </tr>
+      {% for usuario in usuarios %}
+      <tr>
+        <td>{{ usuario.id }}</td>
+        <td>{{ usuario.matricula }}</td>
+        <td>{{ usuario.nome }}</td>
+        <td>{{ usuario.email }}</td>
+        <td>
+          <a href="{{ url_for('editar_usuario', id=usuario.id) }}">Editar</a>
+          <form action="{{ url_for('deletar_usuario', id=usuario.id) }}" method="POST" style="display:inline;">
+            <button type="submit">Deletar</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+  </body>
+</html>

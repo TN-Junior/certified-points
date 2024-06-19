@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <title>Editar Usuário</title>
+  </head>
+  <body>
+    <h1>Editar Usuário</h1>
+    <form method="POST">
+      <label for="matricula">Matrícula</label>
+      <input type="text" name="matricula" value="{{ usuario.matricula }}">
+      <label for="nome">Nome</label>
+      <input type="text" name="nome" value="{{ usuario.nome }}">
+      <label for="email">Email</label>
+      <input type="email" name="email" value="{{ usuario.email }}">
+      <label for="senha">Senha (deixe em branco para manter a senha atual)</label>
+      <input type="password" name="senha">
+      <button type="submit">Atualizar</button>
+    </form>
+  </body>
+</html>

@@ -40,41 +40,14 @@ class Usuario(db.Model):
     def __repr__(self):
         return f'<Usuario {self.nome}>'
 
-    def __repr__(self):
-        return f'<Usuario {self.usuario}>'
 
-'''def calcular_pontos(certificado):
-    pontos = 0
-    nome = certificado['nome']
-    horas = certificado['horas']
-
-    if 'seminários' in nome or 'congressos' in nome or 'oficinas' in nome:
-        pontos = (horas // 20) * 2
-    elif 'atualização' in nome:
-        if horas >= 40:
-            pontos = 5
-    elif 'aperfeiçoamento' in nome:
-        if horas >= 180:
-            pontos = 10
-    elif 'graduação' in nome or 'especialização' in nome:
-        if horas == 360:
-            pontos = 20
-    elif 'Mestrado' in nome or 'Doutorado' in nome or 'Pós-doutorado' in nome:
-        pontos = 30
-    elif 'Instrutoria' in nome or 'Coordenação' in nome:
-        pontos = (horas // 8) * 2
-        if pontos > 10:
-            pontos = 10
-    elif 'grupos' in nome or 'equipes' in nome or 'comissões' in nome or 'projetos especiais' in nome:
-        pontos = 5
-        if pontos > 10:
-            pontos = 10
-    elif 'cargos comissionados' in nome or 'funções gratificadas' in nome:
-        pontos = (horas // 12) * 10  # assumindo que 'horas' está em meses
-        if pontos > 15:
-            pontos = 15
-
-    return pontos'''
+# Função para calcular pontos (deixe descomentada se for usar)
+# def calcular_pontos(certificado):
+#     pontos = 0
+#     nome = certificado['nome']
+#     horas = certificado['horas']
+#     # lógica de cálculo de pontos
+#     return pontos
 
 
 @app.route('/')
@@ -170,6 +143,46 @@ def cadastrar():
         db.session.rollback()
         flash(f'Erro ao cadastrar usuário: {str(e)}')
         return redirect('/signup')
+
+
+# Lista todos os usuários (Read)
+@app.route('/usuarios')
+def listar_usuarios():
+    usuarios = Usuario.query.all()
+    return render_template('usuarios.html', usuarios=usuarios)
+
+# Atualiza um usuário (Update)
+@app.route('/editar_usuario/<int:id>', methods=['GET', 'POST'])
+def editar_usuario(id):
+    usuario = Usuario.query.get(id)
+    if request.method == 'POST':
+        usuario.matricula = request.form['matricula']
+        usuario.nome = request.form['nome']
+        usuario.email = request.form['email']
+        if request.form['senha']:
+            usuario.senha = generate_password_hash(request.form['senha'], method='scrypt')
+        try:
+            db.session.commit()
+            flash('Usuário atualizado com sucesso!')
+            return redirect(url_for('listar_usuarios'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Erro ao atualizar usuário: {str(e)}')
+    return render_template('editar_usuario.html', usuario=usuario)
+
+# Deleta um usuário (Delete)
+@app.route('/deletar_usuario/<int:id>', methods=['POST'])
+def deletar_usuario(id):
+    usuario = Usuario.query.get(id)
+    try:
+        db.session.delete(usuario)
+        db.session.commit()
+        flash('Usuário deletado com sucesso!')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Erro ao deletar usuário: {str(e)}')
+    return redirect(url_for('listar_usuarios'))
+
 
 if __name__ == '__main__':
     with app.app_context():
