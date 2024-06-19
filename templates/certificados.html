@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+
+{% block title %}Certificado Enviado - CertiFlow{% endblock %}
+
+{% block content %}
+<h2>Detalhes do Certificado Enviado</h2>
+<ul>
+    <li><strong>Curso:</strong> {{ certificado.curso }}</li>
+    <li><strong>Carga Horária:</strong> {{ certificado.carga_horaria }}</li>
+    <li><strong>Pontos:</strong> {{ certificado.pontos }}</li>
+    <li><strong>Certificado:</strong> <a href="{{ url_for('uploaded_file', filename=certificado.filename) }}">{{ certificado.filename }}</a></li>
+</ul>
+{% endblock %}
