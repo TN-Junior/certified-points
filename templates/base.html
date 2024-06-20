@@ -42,6 +42,9 @@
         .content {
             margin-top: 70px; /* Espaço para o navbar */
         }
+        .navbar-nav .profile {
+            margin-left: 1250px; /* Adiciona margem esquerda automática para empurrar o item para a direita */
+        }
     </style>
 </head>
 <body>
@@ -63,6 +66,22 @@
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="/logout">Logout</a>
+                </li>
+            </ul>
+            <ul class="navbar-nav ml-auto">
+                <li class="nav-item dropdown profile">
+                    <a class="nav-link dropdown-toggle" href="#" id="profileDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        Perfil
+                    </a>
+                    <div class="dropdown-menu" aria-labelledby="profileDropdown">
+                        <a class="dropdown-item" href="#">Painel</a>
+                        <a class="dropdown-item" href="#">Perfil</a>
+                        <a class="dropdown-item" href="#">Notas</a>
+                        <a class="dropdown-item" href="#">Mensagens</a>
+                        <a class="dropdown-item" href="#">Preferências</a>
+                        <div class="dropdown-divider"></div>
+                        <a class="dropdown-item" href="#">Sair</a>
+                    </div>
                 </li>
             </ul>
         </div>
@@ -96,5 +115,8 @@
             }
         }, 3000);
     </script>
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
 </body>
 </html>

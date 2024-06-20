@@ -41,13 +41,7 @@ class Usuario(db.Model):
         return f'<Usuario {self.nome}>'
 
 
-# Função para calcular pontos (deixe descomentada se for usar)
-# def calcular_pontos(certificado):
-#     pontos = 0
-#     nome = certificado['nome']
-#     horas = certificado['horas']
-#     # lógica de cálculo de pontos
-#     return pontos
+
 
 
 @app.route('/')
