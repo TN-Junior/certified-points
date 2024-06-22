@@ -177,6 +177,21 @@ def deletar_usuario(id):
         flash(f'Erro ao deletar usuário: {str(e)}')
     return redirect(url_for('listar_usuarios'))
 
+@app.route('/cursos')
+def cursos():
+    cursos_list = [
+        {"nome": "Cursos, seminários, congressos e oficinas realizados, promovidos, articulados ou admitidos pelo Município do Recife.", "pontos": 10},
+        {"nome": "Cursos de atualização realizados, promovidos, articulados ou admitidos pelo Município do Recife.", "pontos": 8},
+        {"nome": "Cursos de aperfeiçoamento realizados, promovidos, articulados ou admitidos pelo Município do Recife.", "pontos": 7},
+        {"nome": "Cursos de graduação e especialização realizados em instituição pública ou privada, reconhecida pelo MEC.", "pontos": 12},
+        {"nome": "Mestrado, doutorado e pós-doutorado realizados em instituição pública ou privada, reconhecida pelo MEC.", "pontos": 15},
+        {"nome": "Instrutoria ou Coordenação de cursos promovidos pelo Município do Recife.", "pontos": 5},
+        {"nome": "Participação em grupos, equipes, comissões e projetos especiais, no âmbito do Município do Recife, formalizados por ato oficial.", "pontos": 4},
+        {"nome": "Exercício de cargos comissionados e funções gratificadas, ocupados, exclusivamente, no âmbito do Poder Executivo Municipal.", "pontos": 3}
+    ]
+    return render_template('cursos.html', cursos=cursos_list)
+
+
 
 if __name__ == '__main__':
     with app.app_context():
