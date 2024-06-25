@@ -19,7 +19,6 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 
-
 # Modelos de dados
 class Certificado(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -39,10 +38,6 @@ class Usuario(db.Model):
 
     def __repr__(self):
         return f'<Usuario {self.nome}>'
-
-
-
-
 
 @app.route('/')
 def index():
@@ -138,14 +133,11 @@ def cadastrar():
         flash(f'Erro ao cadastrar usuário: {str(e)}')
         return redirect('/signup')
 
-
-# Lista todos os usuários (Read)
 @app.route('/usuarios')
 def listar_usuarios():
     usuarios = Usuario.query.all()
     return render_template('usuarios.html', usuarios=usuarios)
 
-# Atualiza um usuário (Update)
 @app.route('/editar_usuario/<int:id>', methods=['GET', 'POST'])
 def editar_usuario(id):
     usuario = Usuario.query.get(id)
@@ -164,7 +156,6 @@ def editar_usuario(id):
             flash(f'Erro ao atualizar usuário: {str(e)}')
     return render_template('editar_usuario.html', usuario=usuario)
 
-# Deleta um usuário (Delete)
 @app.route('/deletar_usuario/<int:id>', methods=['POST'])
 def deletar_usuario(id):
     usuario = Usuario.query.get(id)
@@ -190,8 +181,6 @@ def cursos():
         {"nome": "Exercício de cargos comissionados e funções gratificadas, ocupados, exclusivamente, no âmbito do Poder Executivo Municipal.", "pontos": 3}
     ]
     return render_template('cursos.html', cursos=cursos_list)
-
-
 
 if __name__ == '__main__':
     with app.app_context():
