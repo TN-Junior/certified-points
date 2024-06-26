@@ -15,19 +15,17 @@ from flask import abort
 from wtforms.validators import DataRequired, Email
 from flask_migrate import Migrate
 
-
 app = Flask(__name__)
 load_dotenv()
 app.secret_key = os.getenv('SECRET_KEY')
 app.config['UPLOAD_FOLDER'] = os.getenv('UPLOAD_FOLDER')
-
 
 # Configuração da conexão com o banco de dados MySQL
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
-
+migrate = Migrate(app, db)
 
 # Modelos de dados
 class Certificado(db.Model):
@@ -45,15 +43,11 @@ class Usuario(db.Model):
     email = db.Column(db.String(120), unique=True, nullable=False)
     pontuacao = db.Column(db.Integer, default=0)
     senha = db.Column(db.String(120), nullable=False)
-    role = db.Column(db.String(20), default='user')  # Correção aqui
+    role = db.Column(db.String(20), default='user')
 
     def __repr__(self):
         return f'<Usuario {self.nome}>'
 
-
-    def __repr__(self):
-        return f'<Usuario {self.nome}>'
-    
 class UploadForm(FlaskForm):
     qualificacao = StringField('Qualificação', validators=[DataRequired()])
     periodo = StringField('Período', validators=[Optional()])
@@ -65,7 +59,6 @@ class UploadForm(FlaskForm):
     tempo = IntegerField('Tempo (anos)', validators=[Optional()])
     certificate = FileField('Certificado', validators=[DataRequired()])
     submit = SubmitField('Enviar')
-
 
 def requires_admin(f):
     @wraps(f)
@@ -111,8 +104,6 @@ def calcular_pontos(certificado_data):
     
     return pontos
 
-
-
 @app.route('/')
 def index():
     return render_template('home.html', titulo='Bem-vindo ao Certification')
@@ -132,14 +123,12 @@ def autenticar():
         flash(f'{usuario} logado com sucesso!')
         # Verifica o role do usuário e redireciona conforme necessário
         if usuario_db.role == 'admin':
-            return redirect(url_for('certificados'))
+            return redirect(url_for('certificados'))  # Redireciona o admin para a tela de certificados
         else:
-            return redirect(url_for('upload'))
+            return redirect(url_for('upload'))  # Redireciona usuários não-admin para outra rota relevante
     else:
         flash('Usuário ou senha inválidos.')
         return redirect('/login')
-
-
 
 @app.route('/logout')
 def logout():
@@ -158,18 +147,19 @@ def upload():
         pontos = calcular_pontos(certificado_data)
         file = form.certificate.data
         filename = secure_filename(file.filename)
-        
+
         # Verificar e criar o diretório de uploads, se necessário
         upload_folder = app.config['UPLOAD_FOLDER']
         if not os.path.exists(upload_folder):
             os.makedirs(upload_folder)
 
         file.save(os.path.join(upload_folder, filename))
-        session['certificado'] = {
-            'qualificacao': form.qualificacao.data,
-            'pontos': pontos,
-            'filename': filename
-        }
+
+        # Criar e salvar o novo certificado no banco de dados
+        novo_certificado = Certificado(curso=form.qualificacao.data, carga_horaria=form.horas.data, pontos=pontos, filename=filename)
+        db.session.add(novo_certificado)
+        db.session.commit()
+
         flash('Certificado enviado com sucesso!')
         return redirect(url_for('certificados'))
     return render_template('upload.html', form=form)
@@ -177,11 +167,8 @@ def upload():
 @app.route('/certificados')
 @requires_admin
 def certificados():
-    certificado = session.get('certificado')
-    if not certificado:
-        flash('Nenhum certificado enviado.')
-        return redirect(url_for('upload'))
-    return render_template('certificados.html', certificado=certificado)
+    certificados = Certificado.query.all()
+    return render_template('certificados.html', certificados=certificados)
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
@@ -221,7 +208,6 @@ def cadastrar():
         db.session.rollback()
         flash(f'Erro ao cadastrar usuário: {str(e)}')
         return redirect('/signup')
-
 
 # Lista todos os usuários (Read)
 @app.route('/usuarios')
@@ -274,8 +260,6 @@ def cursos():
         {"nome": "Exercício de cargos comissionados e funções gratificadas, ocupados, exclusivamente, no âmbito do Poder Executivo Municipal.", "pontos": 3}
     ]
     return render_template('cursos.html', cursos=cursos_list)
-
-
 
 if __name__ == '__main__':
     with app.app_context():
