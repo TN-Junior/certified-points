@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block title %}
+Cursos
+{% endblock %}
+
+{% block content %}
+<div class="container content">
+    <h1>Cursos</h1>
+    <form>
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Curso</th>
+                    <th>Pontos</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for curso in cursos %}
+                <tr>
+                    <td>{{ curso.nome }}</td>
+                    <td>
+                        <input type="text" class="form-control" value="{{ curso.pontos }}" readonly>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </form>
+</div>
+
+<footer class="footer">
+    <div class="container">
+        <p>&copy; 2024 Certification. All rights reserved.</p>
+    </div>
+</footer>
+{% endblock %}

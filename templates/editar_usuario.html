@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block title %}Editar Usuário - CertiFlow{% endblock %}
+
+{% block content %}
+<h1>Editar Usuário</h1>
+<form method="POST">
+    <label for="matricula">Matrícula</label>
+    <input type="text" name="matricula" value="{{ usuario.matricula }}" class="form-control">
+    <label for="nome">Nome</label>
+    <input type="text" name="nome" value="{{ usuario.nome }}" class="form-control">
+    <label for="email">Email</label>
+    <input type="email" name="email" value="{{ usuario.email }}" class="form-control">
+    <label for="senha">Senha (deixe em branco para manter a senha atual)</label>
+    <input type="password" name="senha" class="form-control">
+    <button type="submit" class="btn btn-primary mt-3">Atualizar</button>
+</form>
+{% endblock %}

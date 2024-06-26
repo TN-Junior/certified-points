@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block title %}Login - CertiFlow{% endblock %}
+
+{% block content %}
+<h1>Faça seu login</h1>
+<form method="POST" action="/autenticar">
+    <p><label>Matricula</label> <input class="form-control" type="text" name="usuario" required></p>
+    <p><label>Senha:</label> <input class="form-control" type="password" name="senha" required></p>
+    <p><button class="btn btn-primary" type="submit">Entrar</button></p>
+</form>
+{% endblock %}
