@@ -18,7 +18,7 @@
         {% for certificado in certificados %}
         <tr>
             <td>{{ certificado.id }}</td>
-            <td>{{ certificado.curso }}</td>
+            <td>{{ certificado.qualificacao }}</td>
             <td>{{ certificado.carga_horaria }}</td>
             <td>{{ certificado.pontos }}</td>
             <td><a href="{{ url_for('uploaded_file', filename=certificado.filename) }}" target="_blank">Download</a></td>
