@@ -31,10 +31,11 @@ migrate = Migrate(app, db)
 # Modelos de dados
 class Certificado(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    curso = db.Column(db.String(100), nullable=False)
+    qualificacao = db.Column(db.String(100), nullable=False)
     carga_horaria = db.Column(db.Integer, nullable=False)
     pontos = db.Column(db.Integer, nullable=False)
     filename = db.Column(db.String(200), nullable=False)
+
 
 class Usuario(db.Model):
     __tablename__ = 'usuarios'
@@ -50,7 +51,7 @@ class Usuario(db.Model):
         return f'<Usuario {self.nome}>'
 
 class UploadForm(FlaskForm):
-    curso = StringField('Curso', validators=[DataRequired()])
+    qualificacao = StringField('Qualificação', validators=[DataRequired()])
     periodo = StringField('Período', validators=[Optional()])
     horas = IntegerField('Horas', validators=[DataRequired()])
     quantidade = IntegerField('Quantidade', validators=[Optional()])
@@ -60,6 +61,7 @@ class UploadForm(FlaskForm):
     tempo = IntegerField('Tempo (anos)', validators=[Optional()])
     certificate = FileField('Certificado', validators=[DataRequired()])
     submit = SubmitField('Enviar')
+
 
 def requires_admin(f):
     @wraps(f)
@@ -73,7 +75,7 @@ def requires_admin(f):
     return decorated_function
 
 def calcular_pontos(certificado_data):
-    curso = certificado_data['curso']
+    qualificacao = certificado_data['qualificacao']
     horas = certificado_data['horas']
     pontos = 0
 
@@ -82,7 +84,7 @@ def calcular_pontos(certificado_data):
         # Adicione mais cursos e suas qualificações correspondentes aqui
     }
 
-    qualificacao = curso_para_qualificacao.get(curso, None)
+    qualificacao = curso_para_qualificacao.get(qualificacao, None)
 
     if qualificacao == 'Cursos, seminários, congressos e oficinas realizados, promovidos, articulados ou admitidos pelo Município do Recife.':
         pontos = (horas // 20) * 2
@@ -109,8 +111,9 @@ def calcular_pontos(certificado_data):
         pontos = (horas // 12) * 10  # Assumindo que 'tempo' foi fornecido em meses, 12 meses = 1 ano
         if pontos > 15:
             pontos = 15
-    
+
     return pontos
+
 
 @app.route('/')
 def index():
@@ -149,7 +152,7 @@ def upload():
     form = UploadForm()
     if form.validate_on_submit():
         certificado_data = {
-            'curso': form.curso.data,
+            'qualificacao': form.qualificacao.data,
             'horas': form.horas.data,
         }
         pontos = calcular_pontos(certificado_data)
@@ -164,7 +167,7 @@ def upload():
         file.save(os.path.join(upload_folder, filename))
 
         # Criar e salvar o novo certificado no banco de dados
-        novo_certificado = Certificado(curso=form.curso.data, carga_horaria=form.horas.data, pontos=pontos, filename=filename)
+        novo_certificado = Certificado(qualificacao=form.qualificacao.data, carga_horaria=form.horas.data, pontos=pontos, filename=filename)
         db.session.add(novo_certificado)
         db.session.commit()
 
