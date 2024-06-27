@@ -15,6 +15,8 @@ from flask import abort
 from wtforms.validators import DataRequired, Email
 from flask_migrate import Migrate
 from sqlalchemy import create_engine
+# Importando as rotas
+from routes import *
 
 app = Flask(__name__)
 load_dotenv()
