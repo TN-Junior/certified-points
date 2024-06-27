@@ -50,7 +50,7 @@ class Usuario(db.Model):
         return f'<Usuario {self.nome}>'
 
 class UploadForm(FlaskForm):
-    qualificacao = StringField('Qualificação', validators=[DataRequired()])
+    curso = StringField('Curso', validators=[DataRequired()])
     periodo = StringField('Período', validators=[Optional()])
     horas = IntegerField('Horas', validators=[DataRequired()])
     quantidade = IntegerField('Quantidade', validators=[Optional()])
@@ -73,10 +73,17 @@ def requires_admin(f):
     return decorated_function
 
 def calcular_pontos(certificado_data):
-    qualificacao = certificado_data['qualificacao']
+    curso = certificado_data['curso']
     horas = certificado_data['horas']
     pontos = 0
-    
+
+    curso_para_qualificacao = {
+        'Gov In Play': 'Cursos, seminários, congressos e oficinas realizados, promovidos, articulados ou admitidos pelo Município do Recife.',
+        # Adicione mais cursos e suas qualificações correspondentes aqui
+    }
+
+    qualificacao = curso_para_qualificacao.get(curso, None)
+
     if qualificacao == 'Cursos, seminários, congressos e oficinas realizados, promovidos, articulados ou admitidos pelo Município do Recife.':
         pontos = (horas // 20) * 2
     elif qualificacao == 'Cursos de atualização realizados, promovidos, articulados ou admitidos pelo Município do Recife.':
@@ -142,7 +149,7 @@ def upload():
     form = UploadForm()
     if form.validate_on_submit():
         certificado_data = {
-            'qualificacao': form.qualificacao.data,
+            'curso': form.curso.data,
             'horas': form.horas.data,
         }
         pontos = calcular_pontos(certificado_data)
@@ -157,13 +164,14 @@ def upload():
         file.save(os.path.join(upload_folder, filename))
 
         # Criar e salvar o novo certificado no banco de dados
-        novo_certificado = Certificado(curso=form.qualificacao.data, carga_horaria=form.horas.data, pontos=pontos, filename=filename)
+        novo_certificado = Certificado(curso=form.curso.data, carga_horaria=form.horas.data, pontos=pontos, filename=filename)
         db.session.add(novo_certificado)
         db.session.commit()
 
         flash('Certificado enviado com sucesso!')
         return redirect(url_for('certificados'))
     return render_template('upload.html', form=form)
+
 
 @app.route('/certificados')
 @requires_admin
