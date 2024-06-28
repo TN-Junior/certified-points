@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, session, flash, url_for, send_from_directory
+from flask import Flask, render_template, request, redirect, session, flash, url_for, send_from_directory, abort
 from werkzeug.utils import secure_filename
 from urllib.parse import quote as url_quote
 import os
@@ -6,15 +6,13 @@ from forms import UploadForm
 from flask_sqlalchemy import SQLAlchemy
 from dotenv import load_dotenv
 from werkzeug.security import generate_password_hash, check_password_hash
-import pymysql
 from wtforms import StringField, IntegerField, FileField, SubmitField, SelectField
 from flask_wtf import FlaskForm
 from wtforms.validators import DataRequired, Optional
 from functools import wraps
-from flask import abort
-from wtforms.validators import DataRequired, Email
 from flask_migrate import Migrate
 from sqlalchemy import create_engine
+from apscheduler.schedulers.background import BackgroundScheduler
 
 app = Flask(__name__)
 load_dotenv()
@@ -28,14 +26,38 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 
+scheduler = BackgroundScheduler()
+
 # Modelos de dados
+class Curso(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    nome = db.Column(db.String(200), nullable=False)
+    pontos = db.Column(db.Integer, default=0)
+
 class Certificado(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     qualificacao = db.Column(db.String(100), nullable=False)
     carga_horaria = db.Column(db.Integer, nullable=False)
     pontos = db.Column(db.Integer, nullable=False)
     filename = db.Column(db.String(200), nullable=False)
+    aprovado = db.Column(db.Boolean, default=False)
+    timestamp = db.Column(db.DateTime, default=db.func.now())
+    curso_id = db.Column(db.Integer, db.ForeignKey('curso.id'))
+    curso = db.relationship('Curso', backref=db.backref('certificados', lazy=True))
 
+# Função para limpar certificados após 24 horas
+def limpar_certificados():
+    from datetime import datetime, timedelta
+    limite = datetime.now() - timedelta(hours=24)
+    certificados_para_deletar = Certificado.query.filter(Certificado.timestamp < limite).all()
+    for certificado in certificados_para_deletar:
+        db.session.delete(certificado)
+    db.session.commit()
+    print("Certificados antigos foram limpos.")
+
+# Agendar a tarefa para rodar a cada 24 horas
+scheduler.add_job(limpar_certificados, 'interval', hours=24)
+scheduler.start()
 
 class Usuario(db.Model):
     __tablename__ = 'usuarios'
@@ -61,7 +83,6 @@ class UploadForm(FlaskForm):
     tempo = IntegerField('Tempo (anos)', validators=[Optional()])
     certificate = FileField('Certificado', validators=[DataRequired()])
     submit = SubmitField('Enviar')
-
 
 def requires_admin(f):
     @wraps(f)
@@ -113,7 +134,6 @@ def calcular_pontos(certificado_data):
             pontos = 15
 
     return pontos
-
 
 @app.route('/')
 def index():
@@ -174,7 +194,6 @@ def upload():
         flash('Certificado enviado com sucesso!')
         return redirect(url_for('certificados'))
     return render_template('upload.html', form=form)
-
 
 @app.route('/certificados')
 @requires_admin
@@ -261,17 +280,39 @@ def deletar_usuario(id):
 
 @app.route('/cursos')
 def cursos():
-    cursos_list = [
-        {"nome": "Cursos, seminários, congressos e oficinas realizados, promovidos, articulados ou admitidos pelo Município do Recife.", "pontos": 10},
-        {"nome": "Cursos de atualização realizados, promovidos, articulados ou admitidos pelo Município do Recife.", "pontos": 8},
-        {"nome": "Cursos de aperfeiçoamento realizados, promovidos, articulados ou admitidos pelo Município do Recife.", "pontos": 7},
-        {"nome": "Cursos de graduação e especialização realizados em instituição pública ou privada, reconhecida pelo MEC.", "pontos": 12},
-        {"nome": "Mestrado, doutorado e pós-doutorado realizados em instituição pública ou privada, reconhecida pelo MEC.", "pontos": 15},
-        {"nome": "Instrutoria ou Coordenação de cursos promovidos pelo Município do Recife.", "pontos": 5},
-        {"nome": "Participação em grupos, equipes, comissões e projetos especiais, no âmbito do Município do Recife, formalizados por ato oficial.", "pontos": 4},
-        {"nome": "Exercício de cargos comissionados e funções gratificadas, ocupados, exclusivamente, no âmbito do Poder Executivo Municipal.", "pontos": 3}
-    ]
+    cursos_list = Curso.query.all()
     return render_template('cursos.html', cursos=cursos_list)
+
+@app.route('/aprovar/<int:certificado_id>', methods=['POST'])
+@requires_admin
+def aprovar_certificado(certificado_id):
+    certificado = Certificado.query.get(certificado_id)
+    if certificado:
+        certificado.aprovado = True
+        curso = Curso.query.filter_by(nome=certificado.qualificacao).first()
+        if curso:
+            curso.pontos += certificado.pontos
+        else:
+            curso = Curso(nome=certificado.qualificacao, pontos=certificado.pontos)
+            db.session.add(curso)
+        db.session.commit()
+        flash('Certificado aprovado e pontos adicionados ao curso!')
+        return redirect(url_for('certificados'))
+    else:
+        flash('Certificado não encontrado.')
+        return redirect(url_for('certificados'))
+
+@app.route('/deletar_certificado/<int:certificado_id>', methods=['POST'])
+@requires_admin
+def deletar_certificado(certificado_id):
+    certificado = Certificado.query.get(certificado_id)
+    if certificado:
+        db.session.delete(certificado)
+        db.session.commit()
+        flash('Certificado deletado com sucesso!')
+    else:
+        flash('Certificado não encontrado.')
+    return redirect(url_for('certificados'))
 
 if __name__ == '__main__':
     with app.app_context():
