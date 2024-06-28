@@ -12,6 +12,8 @@
             <th>Carga Horária</th>
             <th>Pontos</th>
             <th>Arquivo</th>
+            <th>Aprovar</th>
+            <th>Deletar</th>
         </tr>
     </thead>
     <tbody>
@@ -22,6 +24,16 @@
             <td>{{ certificado.carga_horaria }}</td>
             <td>{{ certificado.pontos }}</td>
             <td><a href="{{ url_for('uploaded_file', filename=certificado.filename) }}" target="_blank">Download</a></td>
+            <td>
+                <form action="{{ url_for('aprovar_certificado', certificado_id=certificado.id) }}" method="post">
+                    <button type="submit" class="btn btn-success">Aprovar</button>
+                </form>
+            </td>
+            <td>
+                <form action="{{ url_for('deletar_certificado', certificado_id=certificado.id) }}" method="post">
+                    <button type="submit" class="btn btn-link" style="color: red; text-decoration: none;">X</button>
+                </form>
+            </td>
         </tr>
         {% endfor %}
     </tbody>
