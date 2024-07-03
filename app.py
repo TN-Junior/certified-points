@@ -13,6 +13,7 @@ from functools import wraps
 from flask_migrate import Migrate
 from sqlalchemy import create_engine
 from apscheduler.schedulers.background import BackgroundScheduler
+import pytz
 
 app = Flask(__name__)
 load_dotenv()
@@ -26,7 +27,9 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 
-scheduler = BackgroundScheduler()
+# Defina a timezone usando pytz
+timezone = pytz.timezone('America/Recife')
+scheduler = BackgroundScheduler(timezone=timezone)
 
 # Modelos de dados
 class Curso(db.Model):
