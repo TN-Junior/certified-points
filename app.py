@@ -132,11 +132,11 @@ def calcular_pontos(certificado_data):
             pontos = 10
     elif qualificacao == 'Participação em grupos, equipes, comissões e projetos especiais, no âmbito do Município do Recife, formalizados por ato oficial.':
         pontos = 5
-        se pontos > 10:
+        if pontos > 10:
             pontos = 10
     elif qualificacao == 'Exercício de cargos comissionados e funções gratificadas, ocupados, exclusivamente, no âmbito do Poder Executivo Municipal.':
         pontos = (horas // 12) * 10  # Assumindo que 'tempo' foi fornecido em meses, 12 meses = 1 ano
-        se pontos > 15:
+        if pontos > 15:
             pontos = 15
 
     return pontos
