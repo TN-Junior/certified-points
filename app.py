@@ -31,6 +31,7 @@ migrate = Migrate(app, db)
 timezone = pytz.timezone('America/Recife')
 scheduler = BackgroundScheduler(timezone=timezone)
 
+
 # Modelos de dados
 class Curso(db.Model):
     id = db.Column(db.Integer, primary_key=True)
