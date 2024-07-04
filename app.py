@@ -13,6 +13,7 @@ from functools import wraps
 from flask_migrate import Migrate
 from sqlalchemy import create_engine
 from apscheduler.schedulers.background import BackgroundScheduler
+import pytz
 
 app = Flask(__name__)
 load_dotenv()
@@ -26,7 +27,9 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 
-scheduler = BackgroundScheduler()
+# Configurar a timezone e o scheduler
+timezone = pytz.timezone('America/Recife')
+scheduler = BackgroundScheduler(timezone=timezone)
 
 # Modelos de dados
 class Curso(db.Model):
@@ -56,8 +59,9 @@ def limpar_certificados():
     print("Certificados antigos foram limpos.")
 
 # Agendar a tarefa para rodar a cada 24 horas
-scheduler.add_job(limpar_certificados, 'interval', hours=24)
-scheduler.start()
+def iniciar_scheduler():
+    scheduler.add_job(limpar_certificados, 'interval', hours=24)
+    scheduler.start()
 
 class Usuario(db.Model):
     __tablename__ = 'usuarios'
@@ -317,4 +321,5 @@ def deletar_certificado(certificado_id):
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
+        iniciar_scheduler()
     app.run(host='0.0.0.0', port=5000, debug=True)
