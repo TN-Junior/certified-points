@@ -5,7 +5,7 @@ import os
 from forms import UploadForm
 from flask_sqlalchemy import SQLAlchemy
 from dotenv import load_dotenv
-from werkzeug.security import generate_password_hash, check_password_hash
+from flask_bcrypt import Bcrypt
 from wtforms import StringField, IntegerField, FileField, SubmitField, SelectField
 from flask_wtf import FlaskForm
 from wtforms.validators import DataRequired, Optional
@@ -26,6 +26,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
+bcrypt = Bcrypt(app)
 
 # Configurar a timezone e o scheduler
 timezone = pytz.timezone('America/Recife')
@@ -72,6 +73,7 @@ class Usuario(db.Model):
     email = db.Column(db.String(120), unique=True, nullable=False)
     pontuacao = db.Column(db.Integer, default=0)
     senha = db.Column(db.String(120), nullable=False)
+    senha_bcrypt = db.Column(db.String(120), nullable=True)  # Novo campo para bcrypt
     role = db.Column(db.String(20), default='user')
 
     def __repr__(self):
@@ -154,9 +156,20 @@ def autenticar():
     senha = request.form['senha']
     usuario_db = Usuario.query.filter_by(matricula=usuario).first()
 
-    if usuario_db and check_password_hash(usuario_db.senha, senha):
-        session['usuario_logado'] = usuario
-        flash(f'{usuario} logado com sucesso!')
+    if usuario_db:
+        # Primeiro, tente verificar a senha com bcrypt
+        if usuario_db.senha_bcrypt and bcrypt.check_password_hash(usuario_db.senha_bcrypt, senha):
+            session['usuario_logado'] = usuario
+            flash(f'{usuario} logado com sucesso!')
+        # Se a senha bcrypt falhar, tente com o método antigo e, em caso de sucesso, migre para bcrypt
+        elif check_password_hash(usuario_db.senha, senha):
+            usuario_db.senha_bcrypt = bcrypt.generate_password_hash(senha).decode('utf-8')
+            db.session.commit()
+            session['usuario_logado'] = usuario
+            flash(f'{usuario} logado com sucesso!')
+        else:
+            flash('Usuário ou senha inválidos.')
+            return redirect('/login')
         # Verifica o role do usuário e redireciona conforme necessário
         if usuario_db.role == 'admin':
             return redirect(url_for('certificados'))  # Redireciona o admin para a tela de certificados
@@ -232,9 +245,9 @@ def cadastrar():
         email = request.form['email']
         senha = request.form['senha']
         role = request.form['role']
-        hashed_senha = generate_password_hash(senha, method='scrypt')
+        hashed_senha = bcrypt.generate_password_hash(senha).decode('utf-8')
 
-        novo_usuario = Usuario(matricula=matricula, nome=nome, email=email, senha=hashed_senha, role=role)
+        novo_usuario = Usuario(matricula=matricula, nome=nome, email=email, senha_bcrypt=hashed_senha, role=role)
         db.session.add(novo_usuario)
         db.session.commit()
         flash(f'Usuário {nome} cadastrado com sucesso!')
@@ -260,7 +273,7 @@ def editar_usuario(id):
         usuario.nome = request.form['nome']
         usuario.email = request.form['email']
         if request.form['senha']:
-            usuario.senha = generate_password_hash(request.form['senha'], method='scrypt')
+            usuario.senha_bcrypt = bcrypt.generate_password_hash(request.form['senha']).decode('utf-8')
         try:
             db.session.commit()
             flash('Usuário atualizado com sucesso!')

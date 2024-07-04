@@ -21,3 +21,6 @@ Werkzeug==2.2.2
 pymysql==1.0.2
 #WTForms==3.1.2
 apscheduler==3.6.3
+scrypt==0.8.24
+pyscrypt==1.6.2
+flask-bcrypt==1.0.1
