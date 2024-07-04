@@ -128,7 +128,7 @@ def calcular_pontos(certificado_data):
         pontos = 30
     elif qualificacao == 'Instrutoria ou Coordenação de cursos promovidos pelo Município do Recife.':
         pontos = (horas // 8) * 2
-        se pontos > 10:
+        if pontos > 10:
             pontos = 10
     elif qualificacao == 'Participação em grupos, equipes, comissões e projetos especiais, no âmbito do Município do Recife, formalizados por ato oficial.':
         pontos = 5
