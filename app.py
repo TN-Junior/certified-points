@@ -231,7 +231,7 @@ def cadastrar():
         email = request.form['email']
         senha = request.form['senha']
         role = request.form['role']
-        hashed_senha = generate_password_hash(senha, method='scrypt')
+        hashed_senha = generate_password_hash(senha, method='pbkdf2:sha256')
 
         novo_usuario = Usuario(matricula=matricula, nome=nome, email=email, senha=hashed_senha, role=role)
         db.session.add(novo_usuario)
@@ -259,7 +259,7 @@ def editar_usuario(id):
         usuario.nome = request.form['nome']
         usuario.email = request.form['email']
         if request.form['senha']:
-            usuario.senha = generate_password_hash(request.form['senha'], method='scrypt')
+            usuario.senha = generate_password_hash(request.form['senha'], method='pbkdf2:sha256')
         try:
             db.session.commit()
             flash('Usuário atualizado com sucesso!')
