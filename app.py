@@ -5,7 +5,7 @@ import os
 from forms import UploadForm
 from flask_sqlalchemy import SQLAlchemy
 from dotenv import load_dotenv
-from werkzeug.security import generate_password_hash, check_password_hash
+from flask_bcrypt import Bcrypt
 from wtforms import StringField, IntegerField, FileField, SubmitField, SelectField
 from flask_wtf import FlaskForm
 from wtforms.validators import DataRequired, Optional
@@ -26,6 +26,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
+bcrypt = Bcrypt(app)
 
 # Configurar a timezone e o scheduler
 timezone = pytz.timezone('America/Recife')
@@ -153,7 +154,7 @@ def autenticar():
     senha = request.form['senha']
     usuario_db = Usuario.query.filter_by(matricula=usuario).first()
 
-    if usuario_db and check_password_hash(usuario_db.senha, senha):
+    if usuario_db and bcrypt.check_password_hash(usuario_db.senha, senha):
         session['usuario_logado'] = usuario
         flash(f'{usuario} logado com sucesso!')
         # Verifica o role do usuário e redireciona conforme necessário
@@ -231,7 +232,7 @@ def cadastrar():
         email = request.form['email']
         senha = request.form['senha']
         role = request.form['role']
-        hashed_senha = generate_password_hash(senha, method='pbkdf2:sha256')
+        hashed_senha = bcrypt.generate_password_hash(senha).decode('utf-8')
 
         novo_usuario = Usuario(matricula=matricula, nome=nome, email=email, senha=hashed_senha, role=role)
         db.session.add(novo_usuario)
@@ -259,7 +260,7 @@ def editar_usuario(id):
         usuario.nome = request.form['nome']
         usuario.email = request.form['email']
         if request.form['senha']:
-            usuario.senha = generate_password_hash(request.form['senha'], method='pbkdf2:sha256')
+            usuario.senha = bcrypt.generate_password_hash(request.form['senha']).decode('utf-8')
         try:
             db.session.commit()
             flash('Usuário atualizado com sucesso!')
