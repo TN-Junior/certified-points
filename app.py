@@ -72,6 +72,7 @@ class Usuario(db.Model):
     email = db.Column(db.String(120), unique=True, nullable=False)
     pontuacao = db.Column(db.Integer, default=0)
     senha = db.Column(db.String(120), nullable=False)
+    senha_bcrypt = db.Column(db.String(120), nullable=True)  # Novo campo para bcrypt
     role = db.Column(db.String(20), default='user')
 
     def __repr__(self):
@@ -127,15 +128,15 @@ def calcular_pontos(certificado_data):
         pontos = 30
     elif qualificacao == 'Instrutoria ou Coordenação de cursos promovidos pelo Município do Recife.':
         pontos = (horas // 8) * 2
-        if pontos > 10:
+        se pontos > 10:
             pontos = 10
     elif qualificacao == 'Participação em grupos, equipes, comissões e projetos especiais, no âmbito do Município do Recife, formalizados por ato oficial.':
         pontos = 5
-        if pontos > 10:
+        se pontos > 10:
             pontos = 10
     elif qualificacao == 'Exercício de cargos comissionados e funções gratificadas, ocupados, exclusivamente, no âmbito do Poder Executivo Municipal.':
         pontos = (horas // 12) * 10  # Assumindo que 'tempo' foi fornecido em meses, 12 meses = 1 ano
-        if pontos > 15:
+        se pontos > 15:
             pontos = 15
 
     return pontos
@@ -154,9 +155,20 @@ def autenticar():
     senha = request.form['senha']
     usuario_db = Usuario.query.filter_by(matricula=usuario).first()
 
-    if usuario_db and bcrypt.check_password_hash(usuario_db.senha, senha):
-        session['usuario_logado'] = usuario
-        flash(f'{usuario} logado com sucesso!')
+    if usuario_db:
+        # Primeiro, tente verificar a senha com bcrypt
+        if usuario_db.senha_bcrypt and bcrypt.check_password_hash(usuario_db.senha_bcrypt, senha):
+            session['usuario_logado'] = usuario
+            flash(f'{usuario} logado com sucesso!')
+        # Se a senha bcrypt falhar, tente com o método antigo e, em caso de sucesso, migre para bcrypt
+        elif check_password_hash(usuario_db.senha, senha):
+            usuario_db.senha_bcrypt = bcrypt.generate_password_hash(senha).decode('utf-8')
+            db.session.commit()
+            session['usuario_logado'] = usuario
+            flash(f'{usuario} logado com sucesso!')
+        else:
+            flash('Usuário ou senha inválidos.')
+            return redirect('/login')
         # Verifica o role do usuário e redireciona conforme necessário
         if usuario_db.role == 'admin':
             return redirect(url_for('certificados'))  # Redireciona o admin para a tela de certificados
@@ -234,7 +246,7 @@ def cadastrar():
         role = request.form['role']
         hashed_senha = bcrypt.generate_password_hash(senha).decode('utf-8')
 
-        novo_usuario = Usuario(matricula=matricula, nome=nome, email=email, senha=hashed_senha, role=role)
+        novo_usuario = Usuario(matricula=matricula, nome=nome, email=email, senha_bcrypt=hashed_senha, role=role)
         db.session.add(novo_usuario)
         db.session.commit()
         flash(f'Usuário {nome} cadastrado com sucesso!')
@@ -260,7 +272,7 @@ def editar_usuario(id):
         usuario.nome = request.form['nome']
         usuario.email = request.form['email']
         if request.form['senha']:
-            usuario.senha = bcrypt.generate_password_hash(request.form['senha']).decode('utf-8')
+            usuario.senha_bcrypt = bcrypt.generate_password_hash(request.form['senha']).decode('utf-8')
         try:
             db.session.commit()
             flash('Usuário atualizado com sucesso!')
