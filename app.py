@@ -13,6 +13,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 import pytz
 from datetime import datetime, timedelta
 import scrypt
+import pyscrypt
 
 app = Flask(__name__)
 load_dotenv()
@@ -160,10 +161,10 @@ def autenticar():
                 params = hash_parts[2].split(':')
                 salt = hash_parts[3].encode('utf-8')
                 stored_hash = hash_parts[4].encode('utf-8')
-                
-                # Calcular o hash da senha fornecida
-                computed_hash = scrypt.hash(senha.encode('utf-8'), salt, int(params[0]), int(params[1]), int(params[2]))
-                
+
+                # Calcular o hash da senha fornecida usando pyscrypt
+                computed_hash = pyscrypt.hash(password=senha.encode('utf-8'), salt=salt, N=int(params[0]), r=int(params[1]), p=int(params[2]))
+
                 if computed_hash == stored_hash:
                     session['usuario_logado'] = usuario
                     flash(f'{usuario} logado com sucesso!')
