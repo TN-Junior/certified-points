@@ -229,7 +229,7 @@ def cadastrar():
         email = request.form['email']
         senha = request.form['senha']
         role = request.form['role']
-        hashed_senha = generate_password_hash(senha, method='bcrypt')
+        hashed_senha = generate_password_hash(senha, method='scrypt')
 
         novo_usuario = Usuario(matricula=matricula, nome=nome, email=email, senha=hashed_senha, role=role)
         db.session.add(novo_usuario)
