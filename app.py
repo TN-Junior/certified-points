@@ -14,7 +14,6 @@ import pytz
 from datetime import datetime, timedelta
 import scrypt
 
-
 app = Flask(__name__)
 load_dotenv()
 app.secret_key = os.getenv('SECRET_KEY')
@@ -283,7 +282,7 @@ def listar_usuarios():
 @app.route('/editar_usuario/<int:id>', methods=['GET', 'POST'])
 def editar_usuario(id):
     usuario = Usuario.query.get(id)
-    if request.method == 'POST':
+    if request.method == 'POST']:
         usuario.matricula = request.form['matricula']
         usuario.nome = request.form['nome']
         usuario.email = request.form['email']
