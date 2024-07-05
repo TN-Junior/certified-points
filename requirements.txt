@@ -10,7 +10,6 @@ cachetools==5.3.2
 certifi==2019.11.28
 chardet==3.0.4
 click==8.1.7
-cloud-init==19.4
 colorama==0.4.3
 command-not-found==0.3
 configobj==5.0.6
