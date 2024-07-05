@@ -1,8 +1,7 @@
-from flask import Flask, render_template, request, redirect, session, flash, url_for, send_from_directory, abort
+from flask import Flask, render_template, request, redirect, session, flash, url_for, send_from_directory
 from werkzeug.utils import secure_filename
 from urllib.parse import quote as url_quote
 import os
-from forms import UploadForm
 from flask_sqlalchemy import SQLAlchemy
 from dotenv import load_dotenv
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -11,9 +10,9 @@ from flask_wtf import FlaskForm
 from wtforms.validators import DataRequired, Optional
 from functools import wraps
 from flask_migrate import Migrate
-from sqlalchemy import create_engine
 from apscheduler.schedulers.background import BackgroundScheduler
 import pytz
+from datetime import datetime, timedelta
 
 app = Flask(__name__)
 load_dotenv()
@@ -48,21 +47,6 @@ class Certificado(db.Model):
     curso_id = db.Column(db.Integer, db.ForeignKey('curso.id'))
     curso = db.relationship('Curso', backref=db.backref('certificados', lazy=True))
 
-# Função para limpar certificados após 24 horas
-def limpar_certificados():
-    from datetime import datetime, timedelta
-    limite = datetime.now() - timedelta(hours=24)
-    certificados_para_deletar = Certificado.query.filter(Certificado.timestamp < limite).all()
-    for certificado in certificados_para_deletar:
-        db.session.delete(certificado)
-    db.session.commit()
-    print("Certificados antigos foram limpos.")
-
-# Agendar a tarefa para rodar a cada 24 horas
-def iniciar_scheduler():
-    scheduler.add_job(limpar_certificados, 'interval', hours=24)
-    scheduler.start()
-
 class Usuario(db.Model):
     __tablename__ = 'usuarios'
     id = db.Column(db.Integer, primary_key=True)
@@ -76,6 +60,7 @@ class Usuario(db.Model):
     def __repr__(self):
         return f'<Usuario {self.nome}>'
 
+# Formulários
 class UploadForm(FlaskForm):
     qualificacao = StringField('Qualificação', validators=[DataRequired()])
     periodo = StringField('Período', validators=[Optional()])
@@ -138,6 +123,20 @@ def calcular_pontos(certificado_data):
             pontos = 15
 
     return pontos
+
+# Função para limpar certificados após 24 horas
+def limpar_certificados():
+    limite = datetime.now() - timedelta(hours=24)
+    certificados_para_deletar = Certificado.query.filter(Certificado.timestamp < limite).all()
+    for certificado in certificados_para_deletar:
+        db.session.delete(certificado)
+    db.session.commit()
+    print("Certificados antigos foram limpos.")
+
+# Agendar a tarefa para rodar a cada 24 horas
+def iniciar_scheduler():
+    scheduler.add_job(limpar_certificados, 'interval', hours=24)
+    scheduler.start()
 
 @app.route('/')
 def index():
@@ -231,7 +230,7 @@ def cadastrar():
         email = request.form['email']
         senha = request.form['senha']
         role = request.form['role']
-        hashed_senha = generate_password_hash(senha, method='scrypt')
+        hashed_senha = generate_password_hash(senha, method='bcrypt')
 
         novo_usuario = Usuario(matricula=matricula, nome=nome, email=email, senha=hashed_senha, role=role)
         db.session.add(novo_usuario)
@@ -259,7 +258,7 @@ def editar_usuario(id):
         usuario.nome = request.form['nome']
         usuario.email = request.form['email']
         if request.form['senha']:
-            usuario.senha = generate_password_hash(request.form['senha'], method='scrypt')
+            usuario.senha = generate_password_hash(request.form['senha'], method='bcrypt')
         try:
             db.session.commit()
             flash('Usuário atualizado com sucesso!')
