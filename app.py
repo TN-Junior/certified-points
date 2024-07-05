@@ -1,11 +1,10 @@
 from flask import Flask, render_template, request, redirect, session, flash, url_for, send_from_directory
 from werkzeug.utils import secure_filename
-from urllib.parse import quote as url_quote
 import os
 from flask_sqlalchemy import SQLAlchemy
 from dotenv import load_dotenv
 from werkzeug.security import generate_password_hash, check_password_hash
-from wtforms import StringField, IntegerField, FileField, SubmitField, SelectField
+from wtforms import StringField, IntegerField, FileField, SubmitField
 from flask_wtf import FlaskForm
 from wtforms.validators import DataRequired, Optional
 from functools import wraps
