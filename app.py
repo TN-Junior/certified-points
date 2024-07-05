@@ -12,6 +12,8 @@ from flask_migrate import Migrate
 from apscheduler.schedulers.background import BackgroundScheduler
 import pytz
 from datetime import datetime, timedelta
+import scrypt
+
 
 app = Flask(__name__)
 load_dotenv()
@@ -151,17 +153,46 @@ def autenticar():
     senha = request.form['senha']
     usuario_db = Usuario.query.filter_by(matricula=usuario).first()
 
-    if usuario_db and check_password_hash(usuario_db.senha, senha):
-        session['usuario_logado'] = usuario
-        flash(f'{usuario} logado com sucesso!')
-        # Verifica o role do usuário e redireciona conforme necessário
-        if usuario_db.role == 'admin':
-            return redirect(url_for('certificados'))  # Redireciona o admin para a tela de certificados
+    if usuario_db:
+        if usuario_db.senha.startswith("$scrypt$"):
+            try:
+                # Extrair os parâmetros e o hash do banco de dados
+                hash_parts = usuario_db.senha.split('$')
+                params = hash_parts[2].split(':')
+                salt = hash_parts[3].encode('utf-8')
+                stored_hash = hash_parts[4].encode('utf-8')
+                
+                # Calcular o hash da senha fornecida
+                computed_hash = scrypt.hash(senha.encode('utf-8'), salt, int(params[0]), int(params[1]), int(params[2]))
+                
+                if computed_hash == stored_hash:
+                    session['usuario_logado'] = usuario
+                    flash(f'{usuario} logado com sucesso!')
+                    if usuario_db.role == 'admin':
+                        return redirect(url_for('certificados'))
+                    else:
+                        return redirect(url_for('upload'))
+                else:
+                    flash('Usuário ou senha inválidos.')
+                    return redirect('/login')
+            except Exception as e:
+                flash(f'Erro ao verificar hash: {str(e)}')
+                return redirect('/login')
         else:
-            return redirect(url_for('upload'))  # Redireciona usuários não-admin para outra rota relevante
+            if check_password_hash(usuario_db.senha, senha):
+                session['usuario_logado'] = usuario
+                flash(f'{usuario} logado com sucesso!')
+                if usuario_db.role == 'admin':
+                    return redirect(url_for('certificados'))
+                else:
+                    return redirect(url_for('upload'))
+            else:
+                flash('Usuário ou senha inválidos.')
+                return redirect('/login')
     else:
         flash('Usuário ou senha inválidos.')
         return redirect('/login')
+
 
 @app.route('/logout')
 def logout():
