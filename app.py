@@ -13,7 +13,6 @@ from apscheduler.schedulers.background import BackgroundScheduler
 import pytz
 from datetime import datetime, timedelta
 import scrypt
-import pyscrypt
 
 app = Flask(__name__)
 load_dotenv()
@@ -21,8 +20,14 @@ app.secret_key = os.getenv('SECRET_KEY')
 app.config['UPLOAD_FOLDER'] = os.getenv('UPLOAD_FOLDER')
 
 # Configuração da conexão com o banco de dados MySQL
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
+app.config['SQLALCHEMY_DATABASE_URI'] = f"{os.getenv('DATABASE_URL')}?connect_timeout=10&read_timeout=10&write_timeout=10"
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'pool_recycle': 28000,
+    'pool_pre_ping': True,
+    'pool_size': 10,
+    'max_overflow': 20
+}
 
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
