@@ -7,7 +7,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from wtforms import StringField, IntegerField, FileField, SubmitField
 from flask_wtf import FlaskForm
 from wtforms.validators import DataRequired, Optional
-from functools import wraps
+from functools import wrapsa
 from flask_migrate import Migrate
 from apscheduler.schedulers.background import BackgroundScheduler
 import pytz
@@ -158,42 +158,14 @@ def autenticar():
     senha = request.form['senha']
     usuario_db = Usuario.query.filter_by(matricula=usuario).first()
 
-    if usuario_db:
-        if usuario_db.senha.startswith("$scrypt$"):
-            try:
-                # Extrair os parâmetros e o hash do banco de dados
-                hash_parts = usuario_db.senha.split('$')
-                params = hash_parts[2].split(':')
-                salt = hash_parts[3].encode('utf-8')
-                stored_hash = bytes.fromhex(hash_parts[4])
-
-                # Calcular o hash da senha fornecida usando pyscrypt
-                computed_hash = pyscrypt.hash(password=senha.encode('utf-8'), salt=salt, N=int(params[0]), r=int(params[1]), p=int(params[2]))
-
-                if computed_hash == stored_hash:
-                    session['usuario_logado'] = usuario
-                    flash(f'{usuario} logado com sucesso!')
-                    if usuario_db.role == 'admin':
-                        return redirect(url_for('certificados'))
-                    else:
-                        return redirect(url_for('upload'))
-                else:
-                    flash('Usuário ou senha inválidos.')
-                    return redirect('/login')
-            except Exception as e:
-                flash(f'Erro ao verificar hash: {str(e)}')
-                return redirect('/login')
+    if usuario_db and check_password_hash(usuario_db.senha, senha):
+        session['usuario_logado'] = usuario
+        flash(f'{usuario} logado com sucesso!')
+        # Verifica o role do usuário e redireciona conforme necessário
+        if usuario_db.role == 'admin':
+            return redirect(url_for('certificados'))  # Redireciona o admin para a tela de certificados
         else:
-            if check_password_hash(usuario_db.senha, senha):
-                session['usuario_logado'] = usuario
-                flash(f'{usuario} logado com sucesso!')
-                if usuario_db.role == 'admin':
-                    return redirect(url_for('certificados'))
-                else:
-                    return redirect(url_for('upload'))
-            else:
-                flash('Usuário ou senha inválidos.')
-                return redirect('/login')
+            return redirect(url_for('upload'))  # Redireciona usuários não-admin para outra rota relevante
     else:
         flash('Usuário ou senha inválidos.')
         return redirect('/login')
