@@ -1,17 +1,18 @@
-from flask import Flask, render_template, request, redirect, session, flash, url_for, send_from_directory
+from flask import Flask, render_template, request, redirect, session, flash, url_for, send_from_directory, abort
 from werkzeug.utils import secure_filename
 import os
+from forms import UploadForm
 from flask_sqlalchemy import SQLAlchemy
 from dotenv import load_dotenv
-from werkzeug.security import generate_password_hash, check_password_hash
-from wtforms import StringField, IntegerField, FileField, SubmitField
+from wtforms import StringField, IntegerField, FileField, SubmitField, SelectField
 from flask_wtf import FlaskForm
 from wtforms.validators import DataRequired, Optional
 from functools import wraps
 from flask_migrate import Migrate
+from sqlalchemy import create_engine
 from apscheduler.schedulers.background import BackgroundScheduler
 import pytz
-from datetime import datetime, timedelta
+import pyscrypt
 
 app = Flask(__name__)
 load_dotenv()
@@ -46,6 +47,21 @@ class Certificado(db.Model):
     curso_id = db.Column(db.Integer, db.ForeignKey('curso.id'))
     curso = db.relationship('Curso', backref=db.backref('certificados', lazy=True))
 
+# Função para limpar certificados após 24 horas
+def limpar_certificados():
+    from datetime import datetime, timedelta
+    limite = datetime.now() - timedelta(hours=24)
+    certificados_para_deletar = Certificado.query.filter(Certificado.timestamp < limite).all()
+    for certificado in certificados_para_deletar:
+        db.session.delete(certificado)
+    db.session.commit()
+    print("Certificados antigos foram limpos.")
+
+# Agendar a tarefa para rodar a cada 24 horas
+def iniciar_scheduler():
+    scheduler.add_job(limpar_certificados, 'interval', hours=24)
+    scheduler.start()
+
 class Usuario(db.Model):
     __tablename__ = 'usuarios'
     id = db.Column(db.Integer, primary_key=True)
@@ -53,13 +69,12 @@ class Usuario(db.Model):
     nome = db.Column(db.String(80), nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     pontuacao = db.Column(db.Integer, default=0)
-    senha = db.Column(db.String(120), nullable=False)
+    senha = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(20), default='user')
 
     def __repr__(self):
         return f'<Usuario {self.nome}>'
 
-# Formulários
 class UploadForm(FlaskForm):
     qualificacao = StringField('Qualificação', validators=[DataRequired()])
     periodo = StringField('Período', validators=[Optional()])
@@ -123,19 +138,21 @@ def calcular_pontos(certificado_data):
 
     return pontos
 
-# Função para limpar certificados após 24 horas
-def limpar_certificados():
-    limite = datetime.now() - timedelta(hours=24)
-    certificados_para_deletar = Certificado.query.filter(Certificado.timestamp < limite).all()
-    for certificado in certificados_para_deletar:
-        db.session.delete(certificado)
-    db.session.commit()
-    print("Certificados antigos foram limpos.")
+def hash_password(password):
+    salt = os.urandom(16)
+    hashed = pyscrypt.hash(password=password.encode('utf-8'), salt=salt, N=2048, r=8, p=1, dkLen=32)
+    return salt.hex() + ':' + hashed.hex()
 
-# Agendar a tarefa para rodar a cada 24 horas
-def iniciar_scheduler():
-    scheduler.add_job(limpar_certificados, 'interval', hours=24)
-    scheduler.start()
+def verify_password(stored_password, provided_password):
+    try:
+        salt, stored_hash = stored_password.split(':', 1)  # Limitando a divisão para no máximo 2 partes
+        salt = bytes.fromhex(salt)
+        provided_hash = pyscrypt.hash(password=provided_password.encode('utf-8'), salt=salt, N=2048, r=8, p=1, dkLen=32).hex()
+        return stored_hash == provided_hash
+    except ValueError as e:
+        print(f"Erro ao verificar a senha: {e}")
+        print(f"stored_password: {stored_password}")
+        return False
 
 @app.route('/')
 def index():
@@ -151,7 +168,7 @@ def autenticar():
     senha = request.form['senha']
     usuario_db = Usuario.query.filter_by(matricula=usuario).first()
 
-    if usuario_db and check_password_hash(usuario_db.senha, senha):
+    if usuario_db and verify_password(usuario_db.senha, senha):
         session['usuario_logado'] = usuario
         flash(f'{usuario} logado com sucesso!')
         # Verifica o role do usuário e redireciona conforme necessário
@@ -229,7 +246,9 @@ def cadastrar():
         email = request.form['email']
         senha = request.form['senha']
         role = request.form['role']
-        hashed_senha = generate_password_hash(senha, method='scrypt')
+
+        # Gerar hash da senha usando pyscrypt
+        hashed_senha = hash_password(senha)
 
         novo_usuario = Usuario(matricula=matricula, nome=nome, email=email, senha=hashed_senha, role=role)
         db.session.add(novo_usuario)
@@ -257,7 +276,8 @@ def editar_usuario(id):
         usuario.nome = request.form['nome']
         usuario.email = request.form['email']
         if request.form['senha']:
-            usuario.senha = generate_password_hash(request.form['senha'], method='bcrypt')
+            # Gerar hash da senha usando pyscrypt
+            usuario.senha = hash_password(request.form['senha'])
         try:
             db.session.commit()
             flash('Usuário atualizado com sucesso!')
