@@ -1,15 +1,14 @@
-from flask import Flask, render_template, request, redirect, session, flash, url_for, send_from_directory, abort
+from flask import Flask, render_template, request, redirect, session, flash, url_for, send_from_directory
 from werkzeug.utils import secure_filename
 import os
 from forms import UploadForm
 from flask_sqlalchemy import SQLAlchemy
 from dotenv import load_dotenv
-from wtforms import StringField, IntegerField, FileField, SubmitField, SelectField
+from wtforms import StringField, IntegerField, FileField, SubmitField
 from flask_wtf import FlaskForm
 from wtforms.validators import DataRequired, Optional
 from functools import wraps
 from flask_migrate import Migrate
-from sqlalchemy import create_engine
 from apscheduler.schedulers.background import BackgroundScheduler
 import pytz
 import pyscrypt
@@ -144,7 +143,6 @@ def calcular_pontos(certificado_data):
 
     return pontos
 
-
 def hash_password(password):
     salt = os.urandom(16)
     hashed = pyscrypt.hash(password=password.encode('utf-8'), salt=salt, N=2048, r=8, p=1, dkLen=32)
@@ -232,7 +230,8 @@ def upload():
             ano_conclusao=form.ano_conclusao.data,
             ato_normativo=form.ato_normativo.data,
             tempo=form.tempo.data,
-            filename=filename
+            filename=filename,
+            curso_id=None
         )
         db.session.add(novo_certificado)
         db.session.commit()
@@ -251,15 +250,20 @@ def certificados():
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
-@app.route('/delete/<filename>', methods=['POST'])
-def delete_file(filename):
-    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    if os.path.exists(file_path):
-        os.remove(file_path)
-        flash(f'O arquivo {filename} foi deletado com sucesso!')
+@app.route('/delete/<int:certificado_id>', methods=['POST'])
+@requires_admin
+def delete_file(certificado_id):
+    certificado = Certificado.query.get(certificado_id)
+    if certificado:
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], certificado.filename)
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        db.session.delete(certificado)
+        db.session.commit()
+        flash(f'O certificado {certificado.filename} foi deletado com sucesso!')
     else:
-        flash(f'O arquivo {filename} não foi encontrado.')
-    return redirect(url_for('upload'))
+        flash(f'O certificado {certificado_id} não foi encontrado.')
+    return redirect(url_for('certificados'))
 
 @app.route('/signup')
 def signup():
@@ -298,7 +302,7 @@ def listar_usuarios():
 @app.route('/editar_usuario/<int:id>', methods=['GET', 'POST'])
 def editar_usuario(id):
     usuario = Usuario.query.get(id)
-    if request.method == 'POST':
+    if request.method == 'POST']:
         usuario.matricula = request.form['matricula']
         usuario.nome = request.form['nome']
         usuario.email = request.form['email']
