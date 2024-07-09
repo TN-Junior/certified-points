@@ -38,9 +38,14 @@ class Curso(db.Model):
 
 class Certificado(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    qualificacao = db.Column(db.String(100), nullable=False)
+    qualificacao = db.Column(db.String(255), nullable=False)
+    periodo = db.Column(db.String(50), nullable=True)
     carga_horaria = db.Column(db.Integer, nullable=False)
+    quantidade = db.Column(db.Integer, nullable=True)
     pontos = db.Column(db.Integer, nullable=False)
+    ano_conclusao = db.Column(db.Integer, nullable=True)
+    ato_normativo = db.Column(db.String(100), nullable=True)
+    tempo = db.Column(db.Integer, nullable=True)
     filename = db.Column(db.String(200), nullable=False)
     aprovado = db.Column(db.Boolean, default=False)
     timestamp = db.Column(db.DateTime, default=db.func.now())
@@ -98,17 +103,18 @@ def requires_admin(f):
             return redirect(url_for('index'))
     return decorated_function
 
+# Definindo curso_para_qualificacao fora das funções para ser globalmente acessível
+curso_para_qualificacao = {
+    'Gov In Play': 'Cursos, seminários, congressos e oficinas realizados, promovidos, articulados ou admitidos pelo Município do Recife.',
+    # Adicione mais cursos e suas qualificações correspondentes aqui
+}
+
 def calcular_pontos(certificado_data):
     qualificacao = certificado_data['qualificacao']
     horas = certificado_data['horas']
     pontos = 0
 
-    curso_para_qualificacao = {
-        'Gov In Play': 'Cursos, seminários, congressos e oficinas realizados, promovidos, articulados ou admitidos pelo Município do Recife.',
-        # Adicione mais cursos e suas qualificações correspondentes aqui
-    }
-
-    qualificacao = curso_para_qualificacao.get(qualificacao, None)
+    qualificacao = curso_para_qualificacao.get(qualificacao, qualificacao)
 
     if qualificacao == 'Cursos, seminários, congressos e oficinas realizados, promovidos, articulados ou admitidos pelo Município do Recife.':
         pontos = (horas // 20) * 2
@@ -137,6 +143,7 @@ def calcular_pontos(certificado_data):
             pontos = 15
 
     return pontos
+
 
 def hash_password(password):
     salt = os.urandom(16)
@@ -192,7 +199,13 @@ def upload():
     if form.validate_on_submit():
         certificado_data = {
             'qualificacao': form.qualificacao.data,
+            'periodo': form.periodo.data,
             'horas': form.horas.data,
+            'quantidade': form.quantidade.data,
+            'pontos': form.pontos.data,
+            'ano_conclusao': form.ano_conclusao.data,
+            'ato_normativo': form.ato_normativo.data,
+            'tempo': form.tempo.data,
         }
         pontos = calcular_pontos(certificado_data)
         file = form.certificate.data
@@ -205,8 +218,22 @@ def upload():
 
         file.save(os.path.join(upload_folder, filename))
 
+        # Mapear a qualificação para garantir que "Gov In Play" seja substituído corretamente
+        qualificacao_original = form.qualificacao.data
+        qualificacao = curso_para_qualificacao.get(qualificacao_original, qualificacao_original)
+
         # Criar e salvar o novo certificado no banco de dados
-        novo_certificado = Certificado(qualificacao=form.qualificacao.data, carga_horaria=form.horas.data, pontos=pontos, filename=filename)
+        novo_certificado = Certificado(
+            qualificacao=qualificacao_original,  # Exibir qualificação conforme preenchido
+            periodo=form.periodo.data,
+            carga_horaria=form.horas.data,
+            quantidade=form.quantidade.data,
+            pontos=pontos,
+            ano_conclusao=form.ano_conclusao.data,
+            ato_normativo=form.ato_normativo.data,
+            tempo=form.tempo.data,
+            filename=filename
+        )
         db.session.add(novo_certificado)
         db.session.commit()
 
@@ -311,11 +338,14 @@ def aprovar_certificado(certificado_id):
     certificado = Certificado.query.get(certificado_id)
     if certificado:
         certificado.aprovado = True
-        curso = Curso.query.filter_by(nome=certificado.qualificacao).first()
+        curso_qualificacao = curso_para_qualificacao.get(certificado.qualificacao, certificado.qualificacao)
+        
+        # Atualiza ou cria o curso e adiciona os pontos corretamente
+        curso = Curso.query.filter_by(nome=curso_qualificacao).first()
         if curso:
             curso.pontos += certificado.pontos
         else:
-            curso = Curso(nome=certificado.qualificacao, pontos=certificado.pontos)
+            curso = Curso(nome=curso_qualificacao, pontos=certificado.pontos)
             db.session.add(curso)
         db.session.commit()
         flash('Certificado aprovado e pontos adicionados ao curso!')
@@ -339,5 +369,23 @@ def deletar_certificado(certificado_id):
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
+        # Seed inicial para garantir que os cursos estão no banco de dados
+        cursos = [
+            "Cursos, seminários, congressos e oficinas realizados, promovidos, articulados ou admitidos pelo Município do Recife.",
+            "Cursos de atualização realizados, promovidos, articulados ou admitidos pelo Município do Recife.",
+            "Cursos de aperfeiçoamento realizados, promovidos, articulados ou admitidos pelo Município do Recife.",
+            "Cursos de graduação e especialização realizados em instituição pública ou privada, reconhecida pelo MEC.",
+            "Mestrado, doutorado e pós-doutorado realizados em instituição pública ou privada, reconhecida pelo MEC.",
+            "Instrutoria ou Coordenação de cursos promovidos pelo Município do Recife.",
+            "Participação em grupos, equipes, comissões e projetos especiais, no âmbito do Município do Recife, formalizados por ato oficial.",
+            "Exercício de cargos comissionados e funções gratificadas, ocupados, exclusivamente, no âmbito do Poder Executivo Municipal."
+        ]
+
+        for nome in cursos:
+            if not Curso.query.filter_by(nome=nome).first():
+                curso = Curso(nome=nome)
+                db.session.add(curso)
+        db.session.commit()
+        
         iniciar_scheduler()
     app.run(host='0.0.0.0', port=5000, debug=True)
