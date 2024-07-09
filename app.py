@@ -1,14 +1,15 @@
-from flask import Flask, render_template, request, redirect, session, flash, url_for, send_from_directory
+from flask import Flask, render_template, request, redirect, session, flash, url_for, send_from_directory, abort
 from werkzeug.utils import secure_filename
 import os
 from forms import UploadForm
 from flask_sqlalchemy import SQLAlchemy
 from dotenv import load_dotenv
-from wtforms import StringField, IntegerField, FileField, SubmitField
+from wtforms import StringField, IntegerField, FileField, SubmitField, SelectField
 from flask_wtf import FlaskForm
 from wtforms.validators import DataRequired, Optional
 from functools import wraps
 from flask_migrate import Migrate
+from sqlalchemy import create_engine
 from apscheduler.schedulers.background import BackgroundScheduler
 import pytz
 import pyscrypt
@@ -102,6 +103,15 @@ def requires_admin(f):
             return redirect(url_for('index'))
     return decorated_function
 
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'usuario_logado' not in session:
+            flash('Você precisa estar logado para acessar essa página.')
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
 # Definindo curso_para_qualificacao fora das funções para ser globalmente acessível
 curso_para_qualificacao = {
     'Gov In Play': 'Cursos, seminários, congressos e oficinas realizados, promovidos, articulados ou admitidos pelo Município do Recife.',
@@ -142,6 +152,7 @@ def calcular_pontos(certificado_data):
             pontos = 15
 
     return pontos
+
 
 def hash_password(password):
     salt = os.urandom(16)
@@ -187,9 +198,9 @@ def autenticar():
 
 @app.route('/logout')
 def logout():
-    session['usuario_logado'] = None
+    session.pop('usuario_logado', None)
     flash('Logout efetuado com sucesso!')
-    return redirect('/')
+    return redirect(url_for('index'))
 
 @app.route('/upload', methods=['GET', 'POST'])
 def upload():
@@ -230,8 +241,7 @@ def upload():
             ano_conclusao=form.ano_conclusao.data,
             ato_normativo=form.ato_normativo.data,
             tempo=form.tempo.data,
-            filename=filename,
-            curso_id=None
+            filename=filename
         )
         db.session.add(novo_certificado)
         db.session.commit()
@@ -250,20 +260,15 @@ def certificados():
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
-@app.route('/delete/<int:certificado_id>', methods=['POST'])
-@requires_admin
-def delete_file(certificado_id):
-    certificado = Certificado.query.get(certificado_id)
-    if certificado:
-        file_path = os.path.join(app.config['UPLOAD_FOLDER'], certificado.filename)
-        if os.path.exists(file_path):
-            os.remove(file_path)
-        db.session.delete(certificado)
-        db.session.commit()
-        flash(f'O certificado {certificado.filename} foi deletado com sucesso!')
+@app.route('/delete/<filename>', methods=['POST'])
+def delete_file(filename):
+    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    if os.path.exists(file_path):
+        os.remove(file_path)
+        flash(f'O arquivo {filename} foi deletado com sucesso!')
     else:
-        flash(f'O certificado {certificado_id} não foi encontrado.')
-    return redirect(url_for('certificados'))
+        flash(f'O arquivo {filename} não foi encontrado.')
+    return redirect(url_for('upload'))
 
 @app.route('/signup')
 def signup():
@@ -332,6 +337,7 @@ def deletar_usuario(id):
     return redirect(url_for('listar_usuarios'))
 
 @app.route('/cursos')
+@login_required
 def cursos():
     cursos_list = Curso.query.all()
     return render_template('cursos.html', cursos=cursos_list)
