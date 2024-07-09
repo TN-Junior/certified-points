@@ -302,7 +302,7 @@ def listar_usuarios():
 @app.route('/editar_usuario/<int:id>', methods=['GET', 'POST'])
 def editar_usuario(id):
     usuario = Usuario.query.get(id)
-    if request.method == 'POST']:
+    if request.method == 'POST':
         usuario.matricula = request.form['matricula']
         usuario.nome = request.form['nome']
         usuario.email = request.form['email']
