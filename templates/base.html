@@ -68,17 +68,23 @@
                 </li>
             </ul>
             <ul class="navbar-nav ml-auto">
-                <li class="nav-item dropdown profile">
-                    <a class="nav-link dropdown-toggle" href="#" id="profileDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                        Perfil
-                    </a>
-                    <div class="dropdown-menu" aria-labelledby="profileDropdown">
-                        <a class="dropdown-item" href="/cursos">Painel</a>
-                        <a class="dropdown-item" href="#">Mensagens</a>
-                        <div class="dropdown-divider"></div>
-                        <a class="dropdown-item" href="{{ url_for('logout') }}">Sair</a>
-                    </div>
-                </li>
+                {% if session['usuario_logado'] %}
+                    <li class="nav-item dropdown profile">
+                        <a class="nav-link dropdown-toggle" href="#" id="profileDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                            Perfil
+                        </a>
+                        <div class="dropdown-menu" aria-labelledby="profileDropdown">
+                            {% if session['usuario_role'] == 'admin' %}
+                                <a class="dropdown-item" href="/certificados">Painel</a>
+                            {% else %}
+                                <a class="dropdown-item" href="/cursos">Painel</a>
+                            {% endif %}
+                            <a class="dropdown-item" href="#">Mensagens</a>
+                            <div class="dropdown-divider"></div>
+                            <a class="dropdown-item" href="{{ url_for('logout') }}">Sair</a>
+                        </div>
+                    </li>
+                {% endif %}
             </ul>
         </div>
     </nav>
