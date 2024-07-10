@@ -51,6 +51,8 @@ class Certificado(db.Model):
     timestamp = db.Column(db.DateTime, default=db.func.now())
     curso_id = db.Column(db.Integer, db.ForeignKey('curso.id'))
     curso = db.relationship('Curso', backref=db.backref('certificados', lazy=True))
+    usuario_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'))
+    usuario = db.relationship('Usuario', backref=db.backref('certificados', lazy=True))
 
 # Função para limpar certificados após 24 horas
 def limpar_certificados():
@@ -185,7 +187,7 @@ def autenticar():
     usuario_db = Usuario.query.filter_by(matricula=usuario).first()
 
     if usuario_db and verify_password(usuario_db.senha, senha):
-        session['usuario_logado'] = usuario
+        session['usuario_logado'] = usuario_db.id  # Armazenar o ID do usuário na sessão
         flash(f'{usuario} logado com sucesso!')
         # Verifica o role do usuário e redireciona conforme necessário
         if usuario_db.role == 'admin':
@@ -203,9 +205,11 @@ def logout():
     return redirect(url_for('index'))
 
 @app.route('/upload', methods=['GET', 'POST'])
+@login_required
 def upload():
     form = UploadForm()
     if form.validate_on_submit():
+        usuario_id = session.get('usuario_logado')
         certificado_data = {
             'qualificacao': form.qualificacao.data,
             'periodo': form.periodo.data,
@@ -241,7 +245,8 @@ def upload():
             ano_conclusao=form.ano_conclusao.data,
             ato_normativo=form.ato_normativo.data,
             tempo=form.tempo.data,
-            filename=filename
+            filename=filename,
+            usuario_id=usuario_id  # Associar o certificado ao usuário logado
         )
         db.session.add(novo_certificado)
         db.session.commit()
@@ -253,7 +258,8 @@ def upload():
 @app.route('/certificados')
 @requires_admin
 def certificados():
-    certificados = Certificado.query.all()
+    usuario_id = session.get('usuario_logado')
+    certificados = Certificado.query.filter_by(usuario_id=usuario_id).all()
     return render_template('certificados.html', certificados=certificados)
 
 @app.route('/uploads/<filename>')
@@ -346,7 +352,7 @@ def cursos():
 @requires_admin
 def aprovar_certificado(certificado_id):
     certificado = Certificado.query.get(certificado_id)
-    if certificado:
+    if certificado and certificado.usuario_id == session.get('usuario_logado'):
         certificado.aprovado = True
         curso_qualificacao = curso_para_qualificacao.get(certificado.qualificacao, certificado.qualificacao)
         
@@ -361,7 +367,7 @@ def aprovar_certificado(certificado_id):
         flash('Certificado aprovado e pontos adicionados ao curso!')
         return redirect(url_for('certificados'))
     else:
-        flash('Certificado não encontrado.')
+        flash('Certificado não encontrado ou você não tem permissão para aprová-lo.')
         return redirect(url_for('certificados'))
 
 @app.route('/deletar_certificado/<int:certificado_id>', methods=['POST'])
