@@ -97,7 +97,8 @@ class UploadForm(FlaskForm):
 def requires_admin(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        usuario = Usuario.query.filter_by(matricula=session.get('usuario_logado')).first()
+        usuario_id = session.get('usuario_logado')
+        usuario = Usuario.query.get(usuario_id)
         if usuario and usuario.role == 'admin':
             return f(*args, **kwargs)
         else:
@@ -258,8 +259,7 @@ def upload():
 @app.route('/certificados')
 @requires_admin
 def certificados():
-    usuario_id = session.get('usuario_logado')
-    certificados = Certificado.query.filter_by(usuario_id=usuario_id).all()
+    certificados = Certificado.query.all()  # Todos os certificados para o admin
     return render_template('certificados.html', certificados=certificados)
 
 @app.route('/uploads/<filename>')
@@ -313,7 +313,7 @@ def listar_usuarios():
 @app.route('/editar_usuario/<int:id>', methods=['GET', 'POST'])
 def editar_usuario(id):
     usuario = Usuario.query.get(id)
-    if request.method == 'POST':
+    if request.method == 'POST'):
         usuario.matricula = request.form['matricula']
         usuario.nome = request.form['nome']
         usuario.email = request.form['email']
@@ -352,7 +352,7 @@ def cursos():
 @requires_admin
 def aprovar_certificado(certificado_id):
     certificado = Certificado.query.get(certificado_id)
-    if certificado and certificado.usuario_id == session.get('usuario_logado'):
+    if certificado:
         certificado.aprovado = True
         curso_qualificacao = curso_para_qualificacao.get(certificado.qualificacao, certificado.qualificacao)
         
