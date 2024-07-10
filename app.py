@@ -189,6 +189,9 @@ def autenticar():
 
     if usuario_db and verify_password(usuario_db.senha, senha):
         session['usuario_logado'] = usuario_db.id  # Armazenar o ID do usuário na sessão
+
+        session['usuario_role'] = usuario_db.role  # Armazenar o papel do usuário na sessão
+
         flash(f'{usuario} logado com sucesso!')
         # Verifica o role do usuário e redireciona conforme necessário
         if usuario_db.role == 'admin':
@@ -198,6 +201,7 @@ def autenticar():
     else:
         flash('Usuário ou senha inválidos.')
         return redirect('/login')
+
 
 @app.route('/logout')
 def logout():
@@ -262,6 +266,11 @@ def certificados():
     certificados = Certificado.query.all()  # Todos os certificados para o admin
     return render_template('certificados.html', certificados=certificados)
 
+@app.route('/painel')
+@requires_admin
+def painel():
+    return redirect(url_for('certificados'))
+
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
@@ -305,12 +314,14 @@ def cadastrar():
 
 # Lista todos os usuários (Read)
 @app.route('/usuarios')
+@requires_admin
 def listar_usuarios():
     usuarios = Usuario.query.all()
     return render_template('usuarios.html', usuarios=usuarios)
 
 # Atualiza um usuário (Update)
 @app.route('/editar_usuario/<int:id>', methods=['GET', 'POST'])
+@requires_admin
 def editar_usuario(id):
     usuario = Usuario.query.get(id)
     if request.method == 'POST':
@@ -331,6 +342,7 @@ def editar_usuario(id):
 
 # Deleta um usuário (Delete)
 @app.route('/deletar_usuario/<int:id>', methods=['POST'])
+@requires_admin
 def deletar_usuario(id):
     usuario = Usuario.query.get(id)
     try:
@@ -345,8 +357,13 @@ def deletar_usuario(id):
 @app.route('/cursos')
 @login_required
 def cursos():
-    cursos_list = Curso.query.all()
-    return render_template('cursos.html', cursos=cursos_list)
+    usuario_id = session.get('usuario_logado')
+    usuario = Usuario.query.get(usuario_id)
+    if usuario.role == 'admin':
+        return redirect(url_for('certificados'))  # Redireciona administradores para a tela de certificados
+    else:
+        cursos_list = Curso.query.all()
+        return render_template('cursos.html', cursos=cursos_list)
 
 @app.route('/aprovar/<int:certificado_id>', methods=['POST'])
 @requires_admin
