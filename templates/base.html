@@ -60,15 +60,19 @@
                 <li class="nav-item active">
                     <a class="nav-link" href="/">Home</a>
                 </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="/login">Login</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="/signup">Sign Up</a>
-                </li>
+                {% if not session.get('usuario_logado') %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="/login">Login</a>
+                    </li>
+                {% endif %}
+                {% if session.get('usuario_logado') and session.get('usuario_role') == 'admin' %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="/signup">Sign Up</a>
+                    </li>
+                {% endif %}
             </ul>
             <ul class="navbar-nav ml-auto">
-                {% if session['usuario_logado'] %}
+                {% if session.get('usuario_logado') %}
                     <li class="nav-item dropdown profile">
                         <a class="nav-link dropdown-toggle" href="#" id="profileDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                             Perfil
@@ -79,6 +83,8 @@
                             {% else %}
                                 <a class="dropdown-item" href="/cursos">Painel</a>
                             {% endif %}
+                            <a class="dropdown-item" href="/certificados_pendentes">Certificados Pendentes</a>
+                            <a class="dropdown-item" href="/certificados_aprovados">Certificados Aprovados</a>
                             <a class="dropdown-item" href="#">Mensagens</a>
                             <div class="dropdown-divider"></div>
                             <a class="dropdown-item" href="{{ url_for('logout') }}">Sair</a>

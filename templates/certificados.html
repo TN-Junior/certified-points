@@ -7,7 +7,8 @@
 <table class="table">
     <thead>
         <tr>
-
+            <th>Nome do Usuário</th>
+            <th>Matrícula do Usuário</th>
             <th>Curso</th>
             <th>Periodo</th>
             <th>Carga Horária</th>
@@ -24,6 +25,8 @@
     <tbody>
         {% for certificado in certificados %}
         <tr>
+            <td>{{ certificado.usuario.nome }}</td>
+            <td>{{ certificado.usuario.matricula }}</td>
             <td>{{ certificado.qualificacao }}</td>
             <td>{{ certificado.periodo }}</td>
             <td>{{ certificado.carga_horaria }}</td>

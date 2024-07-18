@@ -3,8 +3,9 @@ from werkzeug.utils import secure_filename
 import os
 from forms import UploadForm
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.pool import QueuePool
 from dotenv import load_dotenv
-from wtforms import StringField, IntegerField, FileField, SubmitField, SelectField
+from wtforms import StringField, IntegerField, FileField, SubmitField, SelectField, DateField
 from flask_wtf import FlaskForm
 from wtforms.validators import DataRequired, Optional
 from functools import wraps
@@ -18,10 +19,15 @@ app = Flask(__name__)
 load_dotenv()
 app.secret_key = os.getenv('SECRET_KEY')
 app.config['UPLOAD_FOLDER'] = os.getenv('UPLOAD_FOLDER')
-
-# Configuração da conexão com o banco de dados MySQL
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'pool_size': 10,
+    'max_overflow': 20,
+    'pool_timeout': 30,
+    'pool_recycle': 3600,
+    'pool_pre_ping': True
+}
 
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
@@ -39,7 +45,7 @@ class Curso(db.Model):
 class Certificado(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     qualificacao = db.Column(db.String(255), nullable=False)
-    periodo = db.Column(db.String(50), nullable=True)
+    periodo = db.Column(db.Date, nullable=True)
     carga_horaria = db.Column(db.Integer, nullable=False)
     quantidade = db.Column(db.Integer, nullable=True)
     pontos = db.Column(db.Integer, nullable=False)
@@ -53,6 +59,7 @@ class Certificado(db.Model):
     curso = db.relationship('Curso', backref=db.backref('certificados', lazy=True))
     usuario_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'))
     usuario = db.relationship('Usuario', backref=db.backref('certificados', lazy=True))
+
 
 # Função para limpar certificados após 24 horas
 def limpar_certificados():
@@ -83,11 +90,24 @@ class Usuario(db.Model):
         return f'<Usuario {self.nome}>'
 
 class UploadForm(FlaskForm):
-    qualificacao = StringField('Qualificação', validators=[DataRequired()])
-    periodo = StringField('Período', validators=[Optional()])
+    qualificacao = SelectField(
+        'Qualificação',
+        choices=[
+            ('', 'Selecione'),  # Opção padrão
+            ('Cursos, seminários, congressos e oficinas realizados, promovidos, articulados ou admitidos pelo Município do Recife.', 'Cursos, seminários, congressos e oficinas realizados, promovidos, articulados ou admitidos pelo Município do Recife.'),
+            ('Cursos de atualização realizados, promovidos, articulados ou admitidos pelo Município do Recife.', 'Cursos de atualização realizados, promovidos, articulados ou admitidos pelo Município do Recife.'),
+            ('Cursos de aperfeiçoamento realizados, promovidos, articulados ou admitidos pelo Município do Recife.', 'Cursos de aperfeiçoamento realizados, promovidos, articulados ou admitidos pelo Município do Recife.'),
+            ('Cursos de graduação e especialização realizados em instituição pública ou privada, reconhecida pelo MEC.', 'Cursos de graduação e especialização realizados em instituição pública ou privada, reconhecida pelo MEC.'),
+            ('Mestrado, doutorado e pós-doutorado realizados em instituição pública ou privada, reconhecida pelo MEC.', 'Mestrado, doutorado e pós-doutorado realizados em instituição pública ou privada, reconhecida pelo MEC.'),
+            ('Instrutoria ou Coordenação de cursos promovidos pelo Município do Recife.', 'Instrutoria ou Coordenação de cursos promovidos pelo Município do Recife.'),
+            ('Participação em grupos, equipes, comissões e projetos especiais, no âmbito do Município do Recife, formalizados por ato oficial.', 'Participação em grupos, equipes, comissões e projetos especiais, no âmbito do Município do Recife, formalizados por ato oficial.'),
+            ('Exercício de cargos comissionados e funções gratificadas, ocupados, exclusivamente, no âmbito do Poder Executivo Municipal.', 'Exercício de cargos comissionados e funções gratificadas, ocupados, exclusivamente, no âmbito do Poder Executivo Municipal.')
+        ],
+        validators=[DataRequired(message="Selecione uma qualificação.")]
+    )
+    periodo = DateField('Período', validators=[Optional()])  # Mudança aqui para DateField
     horas = IntegerField('Horas', validators=[DataRequired()])
     quantidade = IntegerField('Quantidade', validators=[Optional()])
-    pontos = IntegerField('Pontos', validators=[Optional()])
     ano_conclusao = IntegerField('Ano de Conclusão', validators=[Optional()])
     ato_normativo = StringField('Ato Normativo', validators=[Optional()])
     tempo = IntegerField('Tempo (anos)', validators=[Optional()])
@@ -114,12 +134,6 @@ def login_required(f):
             return redirect(url_for('login'))
         return f(*args, **kwargs)
     return decorated_function
-
-# Definindo curso_para_qualificacao fora das funções para ser globalmente acessível
-curso_para_qualificacao = {
-    'Gov In Play': 'Cursos, seminários, congressos e oficinas realizados, promovidos, articulados ou admitidos pelo Município do Recife.',
-    # Adicione mais cursos e suas qualificações correspondentes aqui
-}
 
 def calcular_pontos(certificado_data):
     qualificacao = certificado_data['qualificacao']
@@ -164,7 +178,7 @@ def hash_password(password):
 
 def verify_password(stored_password, provided_password):
     try:
-        salt, stored_hash = stored_password.split(':', 1)  # Limitando a divisão para no máximo 2 partes
+        salt, stored_hash = stored_password.split(':', 1)
         salt = bytes.fromhex(salt)
         provided_hash = pyscrypt.hash(password=provided_password.encode('utf-8'), salt=salt, N=2048, r=8, p=1, dkLen=32).hex()
         return stored_hash == provided_hash
@@ -206,6 +220,7 @@ def autenticar():
 @app.route('/logout')
 def logout():
     session.pop('usuario_logado', None)
+    session.pop('usuario_role', None)  # Remove a role da sessão
     flash('Logout efetuado com sucesso!')
     return redirect(url_for('index'))
 
@@ -220,7 +235,6 @@ def upload():
             'periodo': form.periodo.data,
             'horas': form.horas.data,
             'quantidade': form.quantidade.data,
-            'pontos': form.pontos.data,
             'ano_conclusao': form.ano_conclusao.data,
             'ato_normativo': form.ato_normativo.data,
             'tempo': form.tempo.data,
@@ -266,6 +280,20 @@ def certificados():
     certificados = Certificado.query.all()  # Todos os certificados para o admin
     return render_template('certificados.html', certificados=certificados)
 
+@app.route('/certificados_pendentes')
+@login_required
+def certificados_pendentes():
+    usuario_id = session.get('usuario_logado')
+    certificados = Certificado.query.filter_by(usuario_id=usuario_id, aprovado=False).all()
+    return render_template('certificados_pendentes.html', certificados=certificados)
+
+@app.route('/certificados_aprovados')
+@login_required
+def certificados_aprovados():
+    usuario_id = session.get('usuario_logado')
+    certificados = Certificado.query.filter_by(usuario_id=usuario_id, aprovado=True).all()
+    return render_template('certificados_aprovados.html', certificados=certificados)
+
 @app.route('/painel')
 @requires_admin
 def painel():
@@ -277,7 +305,7 @@ def uploaded_file(filename):
 
 @app.route('/delete/<filename>', methods=['POST'])
 def delete_file(filename):
-    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    file_path = os.path.join(upload_folder, filename)
     if os.path.exists(file_path):
         os.remove(file_path)
         flash(f'O arquivo {filename} foi deletado com sucesso!')
@@ -286,10 +314,12 @@ def delete_file(filename):
     return redirect(url_for('upload'))
 
 @app.route('/signup')
+@requires_admin  # Somente administradores podem acessar
 def signup():
     return render_template('signup.html')
 
 @app.route('/cadastrar', methods=['POST'])
+@requires_admin  # Somente administradores podem acessar
 def cadastrar():
     try:
         matricula = request.form['matricula']

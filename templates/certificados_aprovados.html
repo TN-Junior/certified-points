@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block title %}Certificados Aprovados{% endblock %}
+
+{% block content %}
+<h2>Certificados Aprovados</h2>
+<table class="table">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Qualificação</th>
+            <th>Período</th>
+            <th>Horas</th>
+            <th>Quantidade</th>
+            <th>Ano Conclusão</th>
+            <th>Ato Normativo</th>
+            <th>Tempo</th>
+            <th>Arquivo</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for certificado in certificados %}
+        <tr>
+            <td>{{ certificado.id }}</td>
+            <td>{{ certificado.qualificacao }}</td>
+            <td>{{ certificado.periodo }}</td>
+            <td>{{ certificado.carga_horaria }}</td>
+            <td>{{ certificado.quantidade }}</td>
+            <td>{{ certificado.ano_conclusao }}</td>
+            <td>{{ certificado.ato_normativo }}</td>
+            <td>{{ certificado.tempo }}</td>
+            <td><a href="{{ url_for('uploaded_file', filename=certificado.filename) }}">Ver Arquivo</a></td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}
