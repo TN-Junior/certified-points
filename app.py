@@ -14,6 +14,7 @@ from sqlalchemy import create_engine
 from apscheduler.schedulers.background import BackgroundScheduler
 import pytz
 import pyscrypt
+from datetime import datetime
 
 app = Flask(__name__)
 load_dotenv()
@@ -140,8 +141,6 @@ def calcular_pontos(certificado_data):
     qualificacao = certificado_data['qualificacao']
     horas = certificado_data['horas']
     pontos = 0
-
-    qualificacao = curso_para_qualificacao.get(qualificacao, qualificacao)
 
     if qualificacao == 'Cursos, seminários, congressos e oficinas realizados, promovidos, articulados ou admitidos pelo Município do Recife.':
         pontos = (horas // 20) * 2
@@ -288,7 +287,11 @@ def upload():
 @app.route('/certificados')
 @requires_admin
 def certificados():
-    certificados = Certificado.query.all()  # Todos os certificados para o admin
+    certificados = Certificado.query.all()
+    # Converter strings de data para objetos Date
+    for certificado in certificados:
+        if isinstance(certificado.periodo, str):
+            certificado.periodo = datetime.strptime(certificado.periodo, '%Y-%m-%d').date()
     return render_template('certificados.html', certificados=certificados)
 
 @app.route('/certificados_pendentes')
@@ -296,6 +299,10 @@ def certificados():
 def certificados_pendentes():
     usuario_id = session.get('usuario_logado')
     certificados = Certificado.query.filter_by(usuario_id=usuario_id, aprovado=False).all()
+    # Converter strings de data para objetos Date
+    for certificado in certificados:
+        if isinstance(certificado.periodo, str):
+            certificado.periodo = datetime.strptime(certificado.periodo, '%Y-%m-%d').date()
     return render_template('certificados_pendentes.html', certificados=certificados)
 
 @app.route('/certificados_aprovados')
@@ -303,12 +310,21 @@ def certificados_pendentes():
 def certificados_aprovados():
     usuario_id = session.get('usuario_logado')
     certificados = Certificado.query.filter_by(usuario_id=usuario_id, aprovado=True).all()
+    # Converter strings de data para objetos Date
+    for certificado in certificados:
+        if isinstance(certificado.periodo, str):
+            certificado.periodo = datetime.strptime(certificado.periodo, '%Y-%m-%d').date()
     return render_template('certificados_aprovados.html', certificados=certificados)
 
 @app.route('/painel')
-@requires_admin
+@login_required
 def painel():
-    return redirect(url_for('certificados'))
+    usuario_id = session.get('usuario_logado')
+    usuario = Usuario.query.get(usuario_id)
+    if usuario.role == 'admin':
+        return redirect(url_for('certificados'))  # Redireciona o admin para a tela de certificados
+    else:
+        return redirect(url_for('cursos'))  # Redireciona usuários não-admin para a tela de cursos
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
@@ -412,14 +428,13 @@ def aprovar_certificado(certificado_id):
     certificado = Certificado.query.get(certificado_id)
     if certificado:
         certificado.aprovado = True
-        curso_qualificacao = curso_para_qualificacao.get(certificado.qualificacao, certificado.qualificacao)
         
         # Atualiza ou cria o curso e adiciona os pontos corretamente
-        curso = Curso.query.filter_by(nome=curso_qualificacao).first()
+        curso = Curso.query.filter_by(nome=certificado.qualificacao).first()
         if curso:
             curso.pontos += certificado.pontos
         else:
-            curso = Curso(nome=curso_qualificacao, pontos=certificado.pontos)
+            curso = Curso(nome=certificado.qualificacao, pontos=certificado.pontos)
             db.session.add(curso)
         db.session.commit()
         flash('Certificado aprovado e pontos adicionados ao curso!')

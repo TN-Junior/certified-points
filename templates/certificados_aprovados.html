@@ -3,11 +3,10 @@
 {% block title %}Certificados Aprovados{% endblock %}
 
 {% block content %}
-<h2>Certificados Aprovados</h2>
-<table class="table">
-    <thead>
+<h2 class="my-4">Certificados Aprovados</h2>
+<table class="table table-striped table-bordered table-hover">
+    <thead class="thead-dark">
         <tr>
-            <th>ID</th>
             <th>Qualificação</th>
             <th>Período</th>
             <th>Horas</th>
@@ -21,15 +20,14 @@
     <tbody>
         {% for certificado in certificados %}
         <tr>
-            <td>{{ certificado.id }}</td>
             <td>{{ certificado.qualificacao }}</td>
-            <td>{{ certificado.periodo }}</td>
+            <td>{{ certificado.periodo.strftime('%d/%m/%Y') }}</td>
             <td>{{ certificado.carga_horaria }}</td>
             <td>{{ certificado.quantidade }}</td>
             <td>{{ certificado.ano_conclusao }}</td>
             <td>{{ certificado.ato_normativo }}</td>
             <td>{{ certificado.tempo }}</td>
-            <td><a href="{{ url_for('uploaded_file', filename=certificado.filename) }}">Ver Arquivo</a></td>
+            <td><a href="{{ url_for('uploaded_file', filename=certificado.filename) }}" target="_blank" class="btn btn-info btn-sm">Ver Arquivo</a></td>
         </tr>
         {% endfor %}
     </tbody>
