@@ -44,6 +44,7 @@ class Curso(db.Model):
 
 class Certificado(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    protocolo = db.Column(db.String(50), unique=True, nullable=False)  # Novo campo para o protocolo
     qualificacao = db.Column(db.String(255), nullable=False)
     periodo = db.Column(db.Date, nullable=True)
     carga_horaria = db.Column(db.Integer, nullable=False)
@@ -187,6 +188,16 @@ def verify_password(stored_password, provided_password):
         print(f"stored_password: {stored_password}")
         return False
 
+def generate_protocol(usuario_id):
+    last_certificate = Certificado.query.filter_by(usuario_id=usuario_id).order_by(Certificado.id.desc()).first()
+    if last_certificate:
+        last_protocol = last_certificate.protocolo
+        last_number = int(last_protocol.split('-')[-1])
+        new_number = last_number + 1
+    else:
+        new_number = 1
+    return f"{usuario_id}-{new_number}"
+
 @app.route('/')
 def index():
     return render_template('home.html', titulo='Bem-vindo ao Certification')
@@ -250,13 +261,13 @@ def upload():
 
         file.save(os.path.join(upload_folder, filename))
 
-        # Mapear a qualificação para garantir que "Gov In Play" seja substituído corretamente
-        qualificacao_original = form.qualificacao.data
-        qualificacao = curso_para_qualificacao.get(qualificacao_original, qualificacao_original)
+        # Gerar protocolo sequencial
+        protocolo = generate_protocol(usuario_id)
 
         # Criar e salvar o novo certificado no banco de dados
         novo_certificado = Certificado(
-            qualificacao=qualificacao_original,  # Exibir qualificação conforme preenchido
+            protocolo=protocolo,
+            qualificacao=form.qualificacao.data,  
             periodo=form.periodo.data,
             carga_horaria=form.horas.data,
             quantidade=form.quantidade.data,

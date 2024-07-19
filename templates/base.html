@@ -80,13 +80,12 @@
                         <div class="dropdown-menu" aria-labelledby="profileDropdown">
                             {% if session['usuario_role'] == 'admin' %}
                                 <a class="dropdown-item" href="/certificados">Painel</a>
-                                <a class="dropdown-item" href="/usuarios">Usuários</a>
-                            {% endif %}
-                            {% if session['usuario_role'] == 'user' %}
+                            {% else %}
+                                <a class="dropdown-item" href="/cursos">Painel</a>
                                 <a class="dropdown-item" href="/certificados_pendentes">Certificados Pendentes</a>
                                 <a class="dropdown-item" href="/certificados_aprovados">Certificados Aprovados</a>
-                                <a class="dropdown-item" href="#">Mensagens</a>
                             {% endif %}
+                            <a class="dropdown-item" href="#">Mensagens</a>
                             <div class="dropdown-divider"></div>
                             <a class="dropdown-item" href="{{ url_for('logout') }}">Sair</a>
                         </div>
