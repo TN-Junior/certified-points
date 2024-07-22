@@ -20,12 +20,17 @@
         <td>{{ usuario.email }}</td>
         <td>
             <a href="{{ url_for('editar_usuario', id=usuario.id) }}" class="btn btn-warning">Editar</a>
-            <form action="{{ url_for('deletar_usuario', id=usuario.id) }}" method="POST" style="display:inline;">
+            <form action="{{ url_for('deletar_usuario', id=usuario.id) }}" method="POST" style="display:inline;" onsubmit="return confirmDeletion()">
                 <button type="submit" class="btn btn-danger">Deletar</button>
             </form>
         </td>
     </tr>
     {% endfor %}
 </table>
-{% endblock %}
 
+<script>
+function confirmDeletion() {
+    return confirm("Tem certeza que deseja deletar este Usuário?");
+}
+</script>
+{% endblock %}
