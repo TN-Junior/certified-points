@@ -75,7 +75,11 @@
                 {% if session.get('usuario_logado') %}
                     <li class="nav-item dropdown profile">
                         <a class="nav-link dropdown-toggle" href="#" id="profileDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                            Perfil
+                            {% if session['usuario_role'] == 'admin' %}
+                                Gerenciamento
+                            {% else %}
+                                Perfil
+                            {% endif %}
                         </a>
                         <div class="dropdown-menu" aria-labelledby="profileDropdown">
                             {% if session['usuario_role'] == 'admin' %}
