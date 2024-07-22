@@ -25,16 +25,16 @@
     <tbody>
         {% for certificado in certificados %}
         <tr>
-            <td class="expandable">{{ certificado.usuario.nome }}</td>
-            <td class="expandable">{{ certificado.usuario.matricula }}</td>
-            <td class="expandable">{{ certificado.qualificacao }}</td>
-            <td class="expandable">{{ certificado.periodo.strftime('%d/%m/%Y') }}</td>
-            <td class="expandable">{{ certificado.carga_horaria }}</td>
-            <td class="expandable">{{ certificado.quantidade }}</td>
-            <td class="expandable">{{ certificado.pontos }}</td>
-            <td class="expandable">{{ certificado.ano_conclusao }}</td>
-            <td class="expandable">{{ certificado.ato_normativo }}</td>
-            <td class="expandable">{{ certificado.tempo }}</td>
+            <td>{{ certificado.usuario.nome }}</td>
+            <td>{{ certificado.usuario.matricula }}</td>
+            <td>{{ certificado.qualificacao }}</td>
+            <td>{{ certificado.periodo.strftime('%d/%m/%Y') }}</td>
+            <td>{{ certificado.carga_horaria }}</td>
+            <td>{{ certificado.quantidade }}</td>
+            <td>{{ certificado.pontos }}</td>
+            <td>{{ certificado.ano_conclusao }}</td>
+            <td>{{ certificado.ato_normativo }}</td>
+            <td>{{ certificado.tempo }}</td>
             <td><a href="{{ url_for('uploaded_file', filename=certificado.filename) }}" target="_blank" class="btn btn-info btn-sm">Download</a></td>
             <td>
                 <form action="{{ url_for('aprovar_certificado', certificado_id=certificado.id) }}" method="post">
