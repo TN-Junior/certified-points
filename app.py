@@ -213,10 +213,9 @@ def autenticar():
 
     if usuario_db and verify_password(usuario_db.senha, senha):
         session['usuario_logado'] = usuario_db.id  # Armazenar o ID do usuário na sessão
-
         session['usuario_role'] = usuario_db.role  # Armazenar o papel do usuário na sessão
 
-        flash(f'{usuario} logado com sucesso!')
+        flash(f'{usuario_db.nome} logado com sucesso!')  # Usar o nome do usuário aqui
         # Verifica o role do usuário e redireciona conforme necessário
         if usuario_db.role == 'admin':
             return redirect(url_for('certificados'))  # Redireciona o admin para a tela de certificados
