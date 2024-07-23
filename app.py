@@ -280,7 +280,7 @@ def upload():
         db.session.commit()
 
         flash('Certificado enviado com sucesso!')
-        return redirect(url_for('certificados'))
+        return redirect(url_for('upload'))  # Redireciona de volta para a página de upload
     return render_template('upload.html', form=form)
 
 @app.route('/certificados')

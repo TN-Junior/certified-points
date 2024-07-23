@@ -7,6 +7,7 @@
 <table class="table table-striped table-bordered table-hover">
     <thead class="thead-dark">
         <tr>
+            <th>Protocolo</th>
             <th>Usuário</th>
             <th>Matrícula</th>
             <th>Qualificação</th>
@@ -25,6 +26,7 @@
     <tbody>
         {% for certificado in certificados %}
         <tr>
+            <td>{{ certificado.protocolo }}</td>
             <td>{{ certificado.usuario.nome }}</td>
             <td>{{ certificado.usuario.matricula }}</td>
             <td>{{ certificado.qualificacao }}</td>
