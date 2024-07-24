@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, session, flash, url_for, send_from_directory, abort
+from flask import Flask, render_template, request, redirect, session, flash, url_for, send_from_directory
 from werkzeug.utils import secure_filename
 import os
 from forms import UploadForm
@@ -37,6 +37,18 @@ migrate = Migrate(app, db)
 timezone = pytz.timezone('America/Recife')
 scheduler = BackgroundScheduler(timezone=timezone)
 
+# Lista de qualificações
+QUALIFICACOES = [
+    "Cursos, seminários, congressos e oficinas realizados, promovidos, articulados ou admitidos pelo Município do Recife.",
+    "Cursos de atualização realizados, promovidos, articulados ou admitidos pelo Município do Recife.",
+    "Cursos de aperfeiçoamento realizados, promovidos, articulados ou admitidos pelo Município do Recife.",
+    "Cursos de graduação e especialização realizados em instituição pública ou privada, reconhecida pelo MEC.",
+    "Mestrado, doutorado e pós-doutorado realizados em instituição pública ou privada, reconhecida pelo MEC.",
+    "Instrutoria ou Coordenação de cursos promovidos pelo Município do Recife.",
+    "Participação em grupos, equipes, comissões e projetos especiais, no âmbito do Município do Recife, formalizados por ato oficial.",
+    "Exercício de cargos comissionados e funções gratificadas, ocupados, exclusivamente, no âmbito do Poder Executivo Municipal."
+]
+
 # Modelos de dados
 class Curso(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -45,7 +57,7 @@ class Curso(db.Model):
 
 class Certificado(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    protocolo = db.Column(db.String(50), unique=True, nullable=False)  # Novo campo para o protocolo
+    protocolo = db.Column(db.String(50), unique=True, nullable=False)
     qualificacao = db.Column(db.String(255), nullable=False)
     periodo = db.Column(db.Date, nullable=True)
     carga_horaria = db.Column(db.Integer, nullable=False)
@@ -94,19 +106,12 @@ class UploadForm(FlaskForm):
     qualificacao = SelectField(
         'Qualificação',
         choices=[
-            ('', 'Selecione'),  # Opção padrão
-            ('Cursos, seminários, congressos e oficinas realizados, promovidos, articulados ou admitidos pelo Município do Recife.', 'Cursos, seminários, congressos e oficinas realizados, promovidos, articulados ou admitidos pelo Município do Recife.'),
-            ('Cursos de atualização realizados, promovidos, articulados ou admitidos pelo Município do Recife.', 'Cursos de atualização realizados, promovidos, articulados ou admitidos pelo Município do Recife.'),
-            ('Cursos de aperfeiçoamento realizados, promovidos, articulados ou admitidos pelo Município do Recife.', 'Cursos de aperfeiçoamento realizados, promovidos, articulados ou admitidos pelo Município do Recife.'),
-            ('Cursos de graduação e especialização realizados em instituição pública ou privada, reconhecida pelo MEC.', 'Cursos de graduação e especialização realizados em instituição pública ou privada, reconhecida pelo MEC.'),
-            ('Mestrado, doutorado e pós-doutorado realizados em instituição pública ou privada, reconhecida pelo MEC.', 'Mestrado, doutorado e pós-doutorado realizados em instituição pública ou privada, reconhecida pelo MEC.'),
-            ('Instrutoria ou Coordenação de cursos promovidos pelo Município do Recife.', 'Instrutoria ou Coordenação de cursos promovidos pelo Município do Recife.'),
-            ('Participação em grupos, equipes, comissões e projetos especiais, no âmbito do Município do Recife, formalizados por ato oficial.', 'Participação em grupos, equipes, comissões e projetos especiais, no âmbito do Município do Recife, formalizados por ato oficial.'),
-            ('Exercício de cargos comissionados e funções gratificadas, ocupados, exclusivamente, no âmbito do Poder Executivo Municipal.', 'Exercício de cargos comissionados e funções gratificadas, ocupados, exclusivamente, no âmbito do Poder Executivo Municipal.')
+            ('', 'Selecione'),
+            *[(qualificacao, qualificacao) for qualificacao in QUALIFICACOES]
         ],
         validators=[DataRequired(message="Selecione uma qualificação.")]
     )
-    periodo = DateField('Período', validators=[Optional()])  # Mudança aqui para DateField
+    periodo = DateField('Período', validators=[Optional()])
     horas = IntegerField('Horas', validators=[DataRequired()])
     quantidade = IntegerField('Quantidade', validators=[Optional()])
     ano_conclusao = IntegerField('Ano de Conclusão', validators=[Optional()])
@@ -164,7 +169,7 @@ def calcular_pontos(certificado_data):
         if pontos > 10:
             pontos = 10
     elif qualificacao == 'Exercício de cargos comissionados e funções gratificadas, ocupados, exclusivamente, no âmbito do Poder Executivo Municipal.':
-        pontos = (tempo // 6) * 10  # Cada 6 meses ou fração superior a 6 meses conta como 10 pontos
+        pontos = (tempo // 6) * 10
         if pontos > 15:
             pontos = 15
 
@@ -211,15 +216,14 @@ def autenticar():
     usuario_db = Usuario.query.filter_by(matricula=usuario).first()
 
     if usuario_db and verify_password(usuario_db.senha, senha):
-        session['usuario_logado'] = usuario_db.id  # Armazenar o ID do usuário na sessão
-        session['usuario_role'] = usuario_db.role  # Armazenar o papel do usuário na sessão
+        session['usuario_logado'] = usuario_db.id
+        session['usuario_role'] = usuario_db.role
 
-        flash(f'{usuario_db.nome} logado com sucesso!')  # Usar o nome do usuário aqui
-        # Verifica o role do usuário e redireciona conforme necessário
+        flash(f'{usuario_db.nome} logado com sucesso!')
         if usuario_db.role == 'admin':
-            return redirect(url_for('certificados'))  # Redireciona o admin para a tela de certificados
+            return redirect(url_for('certificados'))
         else:
-            return redirect(url_for('upload'))  # Redireciona usuários não-admin para outra rota relevante
+            return redirect(url_for('upload'))
     else:
         flash('Usuário ou senha inválidos.')
         return redirect('/login')
@@ -227,7 +231,7 @@ def autenticar():
 @app.route('/logout')
 def logout():
     session.pop('usuario_logado', None)
-    session.pop('usuario_role', None)  # Remove a role da sessão
+    session.pop('usuario_role', None)
     flash('Logout efetuado com sucesso!')
     return redirect(url_for('index'))
 
@@ -250,17 +254,14 @@ def upload():
         file = form.certificate.data
         filename = secure_filename(file.filename)
 
-        # Verificar e criar o diretório de uploads, se necessário
         upload_folder = app.config['UPLOAD_FOLDER']
         if not os.path.exists(upload_folder):
             os.makedirs(upload_folder)
 
         file.save(os.path.join(upload_folder, filename))
 
-        # Gerar protocolo sequencial
         protocolo = generate_protocol(usuario_id)
 
-        # Criar e salvar o novo certificado no banco de dados
         novo_certificado = Certificado(
             protocolo=protocolo,
             qualificacao=form.qualificacao.data,  
@@ -272,13 +273,13 @@ def upload():
             ato_normativo=form.ato_normativo.data,
             tempo=form.tempo.data,
             filename=filename,
-            usuario_id=usuario_id  # Associar o certificado ao usuário logado
+            usuario_id=usuario_id
         )
         db.session.add(novo_certificado)
         db.session.commit()
 
         flash('Certificado enviado com sucesso!')
-        return redirect(url_for('upload'))  # Redireciona de volta para a página de upload
+        return redirect(url_for('upload'))
     return render_template('upload.html', form=form)
 
 @app.route('/certificados')
@@ -307,7 +308,7 @@ def painel():
     usuario_id = session.get('usuario_logado')
     usuario = db.session.get(Usuario, usuario_id)
     if usuario.role == 'admin':
-        return redirect(url_for('certificados'))  # Redireciona o admin para a tela de certificados
+        return redirect(url_for('certificados'))
     else:
         return render_template('painel.html', usuario=usuario)
 
@@ -326,12 +327,12 @@ def delete_file(filename):
     return redirect(url_for('upload'))
 
 @app.route('/signup')
-@requires_admin  # Somente administradores podem acessar
+@requires_admin
 def signup():
     return render_template('signup.html')
 
 @app.route('/cadastrar', methods=['POST'])
-@requires_admin  # Somente administradores podem acessar
+@requires_admin
 def cadastrar():
     try:
         matricula = request.form['matricula']
@@ -340,7 +341,6 @@ def cadastrar():
         senha = request.form['senha']
         role = request.form['role']
 
-        # Gerar hash da senha usando pyscrypt
         hashed_senha = hash_password(senha)
 
         novo_usuario = Usuario(matricula=matricula, nome=nome, email=email, senha=hashed_senha, role=role)
@@ -366,12 +366,11 @@ def listar_usuarios():
 @requires_admin
 def editar_usuario(id):
     usuario = db.session.get(Usuario, id)
-    if request.method == 'POST'):
+    if request.method == 'POST':
         usuario.matricula = request.form['matricula']
         usuario.nome = request.form['nome']
         usuario.email = request.form['email']
         if request.form['senha']:
-            # Gerar hash da senha usando pyscrypt
             usuario.senha = hash_password(request.form['senha'])
         try:
             db.session.commit()
@@ -405,13 +404,12 @@ def cursos():
     # Filtrar certificados aprovados do usuário logado
     certificados_aprovados = Certificado.query.filter_by(usuario_id=usuario_id, aprovado=True).all()
     
-    # Somar pontos por curso para o usuário logado
-    cursos_pontos = {}
+    # Inicializar o dicionário de pontos para cada qualificação
+    cursos_pontos = {qualificacao: 0 for qualificacao in QUALIFICACOES}
+    
+    # Somar os pontos dos certificados aprovados do usuário logado
     for certificado in certificados_aprovados:
-        if certificado.qualificacao in cursos_pontos:
-            cursos_pontos[certificado.qualificacao] += certificado.pontos
-        else:
-            cursos_pontos[certificado.qualificacao] = certificado.pontos
+        cursos_pontos[certificado.qualificacao] += certificado.pontos
     
     cursos_list = [{'nome': nome, 'pontos': pontos} for nome, pontos in cursos_pontos.items()]
     
@@ -436,7 +434,6 @@ def aprovar_certificado(certificado_id):
         flash('Certificado não encontrado ou você não tem permissão para aprová-lo.')
         return redirect(url_for('certificados'))
 
-
 @app.route('/deletar_certificado/<int:certificado_id>', methods=['POST'])
 @requires_admin
 def deletar_certificado(certificado_id):
@@ -453,18 +450,7 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
         # Seed inicial para garantir que os cursos estão no banco de dados
-        cursos = [
-            "Cursos, seminários, congressos e oficinas realizados, promovidos, articulados ou admitidos pelo Município do Recife.",
-            "Cursos de atualização realizados, promovidos, articulados ou admitidos pelo Município do Recife.",
-            "Cursos de aperfeiçoamento realizados, promovidos, articulados ou admitidos pelo Município do Recife.",
-            "Cursos de graduação e especialização realizados em instituição pública ou privada, reconhecida pelo MEC.",
-            "Mestrado, doutorado e pós-doutorado realizados em instituição pública ou privada, reconhecida pelo MEC.",
-            "Instrutoria ou Coordenação de cursos promovidos pelo Município do Recife.",
-            "Participação em grupos, equipes, comissões e projetos especiais, no âmbito do Município do Recife, formalizados por ato oficial.",
-            "Exercício de cargos comissionados e funções gratificadas, ocupados, exclusivamente, no âmbito do Poder Executivo Municipal."
-        ]
-
-        for nome in cursos:
+        for nome in QUALIFICACOES:
             if not Curso.query.filter_by(nome=nome).first():
                 curso = Curso(nome=nome)
                 db.session.add(curso)
