@@ -285,10 +285,6 @@ def upload():
 @requires_admin
 def certificados():
     certificados = Certificado.query.all()
-    # Converter strings de data para objetos Date
-    for certificado in certificados:
-        if isinstance(certificado.periodo, str):
-            certificado.periodo = datetime.strptime(certificado.periodo, '%Y-%m-%d').date()
     return render_template('certificados.html', certificados=certificados)
 
 @app.route('/certificados_pendentes')
@@ -296,10 +292,6 @@ def certificados():
 def certificados_pendentes():
     usuario_id = session.get('usuario_logado')
     certificados = Certificado.query.filter_by(usuario_id=usuario_id, aprovado=False).all()
-    # Converter strings de data para objetos Date
-    for certificado in certificados:
-        if isinstance(certificado.periodo, str):
-            certificado.periodo = datetime.strptime(certificado.periodo, '%Y-%m-%d').date()
     return render_template('certificados_pendentes.html', certificados=certificados)
 
 @app.route('/certificados_aprovados')
@@ -307,10 +299,6 @@ def certificados_pendentes():
 def certificados_aprovados():
     usuario_id = session.get('usuario_logado')
     certificados = Certificado.query.filter_by(usuario_id=usuario_id, aprovado=True).all()
-    # Converter strings de data para objetos Date
-    for certificado in certificados:
-        if isinstance(certificado.periodo, str):
-            certificado.periodo = datetime.strptime(certificado.periodo, '%Y-%m-%d').date()
     return render_template('certificados_aprovados.html', certificados=certificados)
 
 @app.route('/painel')
@@ -321,7 +309,7 @@ def painel():
     if usuario.role == 'admin':
         return redirect(url_for('certificados'))  # Redireciona o admin para a tela de certificados
     else:
-        return redirect(url_for('cursos'))  # Redireciona usuários não-admin para a tela de cursos
+        return render_template('painel.html', usuario=usuario)
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
@@ -378,7 +366,7 @@ def listar_usuarios():
 @requires_admin
 def editar_usuario(id):
     usuario = db.session.get(Usuario, id)
-    if request.method == 'POST':
+    if request.method == 'POST'):
         usuario.matricula = request.form['matricula']
         usuario.nome = request.form['nome']
         usuario.email = request.form['email']
@@ -413,11 +401,21 @@ def deletar_usuario(id):
 def cursos():
     usuario_id = session.get('usuario_logado')
     usuario = db.session.get(Usuario, usuario_id)
-    if usuario.role == 'admin':
-        return redirect(url_for('certificados'))  # Redireciona administradores para a tela de certificados
-    else:
-        cursos_list = Curso.query.all()
-        return render_template('cursos.html', cursos=cursos_list)
+    
+    # Filtrar certificados aprovados do usuário logado
+    certificados_aprovados = Certificado.query.filter_by(usuario_id=usuario_id, aprovado=True).all()
+    
+    # Somar pontos por curso para o usuário logado
+    cursos_pontos = {}
+    for certificado in certificados_aprovados:
+        if certificado.qualificacao in cursos_pontos:
+            cursos_pontos[certificado.qualificacao] += certificado.pontos
+        else:
+            cursos_pontos[certificado.qualificacao] = certificado.pontos
+    
+    cursos_list = [{'nome': nome, 'pontos': pontos} for nome, pontos in cursos_pontos.items()]
+    
+    return render_template('cursos.html', cursos=cursos_list, usuario=usuario)
 
 @app.route('/aprovar/<int:certificado_id>', methods=['POST'])
 @requires_admin
@@ -426,19 +424,18 @@ def aprovar_certificado(certificado_id):
     if certificado:
         certificado.aprovado = True
         
-        # Atualiza ou cria o curso e adiciona os pontos corretamente
-        curso = Curso.query.filter_by(nome=certificado.qualificacao).first()
-        if curso:
-            curso.pontos += certificado.pontos
-        else:
-            curso = Curso(nome=certificado.qualificacao, pontos=certificado.pontos)
-            db.session.add(curso)
+        # Adicionar pontos ao usuário específico que submeteu o certificado
+        usuario = db.session.get(Usuario, certificado.usuario_id)
+        if usuario:
+            usuario.pontuacao += certificado.pontos
+        
         db.session.commit()
-        flash('Certificado aprovado e pontos adicionados ao curso!')
+        flash('Certificado aprovado e pontos adicionados ao usuário!')
         return redirect(url_for('certificados'))
     else:
         flash('Certificado não encontrado ou você não tem permissão para aprová-lo.')
         return redirect(url_for('certificados'))
+
 
 @app.route('/deletar_certificado/<int:certificado_id>', methods=['POST'])
 @requires_admin
