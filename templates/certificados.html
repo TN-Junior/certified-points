@@ -30,7 +30,7 @@
             <td>{{ certificado.usuario.nome }}</td>
             <td>{{ certificado.usuario.matricula }}</td>
             <td>{{ certificado.qualificacao }}</td>
-            <td>{{ certificado.periodo.strftime('%d/%m/%Y') }}</td>
+            <td>{% if certificado.periodo %}{{ certificado.periodo.strftime('%d/%m/%Y') }}{% else %}N/A{% endif %}</td>
             <td>{{ certificado.carga_horaria }}</td>
             <td>{{ certificado.quantidade }}</td>
             <td>{{ certificado.pontos }}</td>

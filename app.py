@@ -62,7 +62,6 @@ class Certificado(db.Model):
     usuario_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'))
     usuario = db.relationship('Usuario', backref=db.backref('certificados', lazy=True))
 
-
 # Função para limpar certificados após 24 horas
 def limpar_certificados():
     from datetime import datetime, timedelta
@@ -112,7 +111,7 @@ class UploadForm(FlaskForm):
     quantidade = IntegerField('Quantidade', validators=[Optional()])
     ano_conclusao = IntegerField('Ano de Conclusão', validators=[Optional()])
     ato_normativo = StringField('Ato Normativo', validators=[Optional()])
-    tempo = IntegerField('Tempo (anos)', validators=[Optional()])
+    tempo = IntegerField('Tempo (meses)', validators=[Optional()])
     certificate = FileField('Certificado', validators=[DataRequired()])
     submit = SubmitField('Enviar')
 
@@ -120,7 +119,7 @@ def requires_admin(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         usuario_id = session.get('usuario_logado')
-        usuario = Usuario.query.get(usuario_id)
+        usuario = db.session.get(Usuario, usuario_id)
         if usuario and usuario.role == 'admin':
             return f(*args, **kwargs)
         else:
@@ -140,6 +139,7 @@ def login_required(f):
 def calcular_pontos(certificado_data):
     qualificacao = certificado_data['qualificacao']
     horas = certificado_data['horas']
+    tempo = certificado_data.get('tempo', 0)
     pontos = 0
 
     if qualificacao == 'Cursos, seminários, congressos e oficinas realizados, promovidos, articulados ou admitidos pelo Município do Recife.':
@@ -164,12 +164,11 @@ def calcular_pontos(certificado_data):
         if pontos > 10:
             pontos = 10
     elif qualificacao == 'Exercício de cargos comissionados e funções gratificadas, ocupados, exclusivamente, no âmbito do Poder Executivo Municipal.':
-        pontos = (horas // 12) * 10  # Assumindo que 'tempo' foi fornecido em meses, 12 meses = 1 ano
+        pontos = (tempo // 6) * 10  # Cada 6 meses ou fração superior a 6 meses conta como 10 pontos
         if pontos > 15:
             pontos = 15
 
     return pontos
-
 
 def hash_password(password):
     salt = os.urandom(16)
@@ -224,7 +223,6 @@ def autenticar():
     else:
         flash('Usuário ou senha inválidos.')
         return redirect('/login')
-
 
 @app.route('/logout')
 def logout():
@@ -319,7 +317,7 @@ def certificados_aprovados():
 @login_required
 def painel():
     usuario_id = session.get('usuario_logado')
-    usuario = Usuario.query.get(usuario_id)
+    usuario = db.session.get(Usuario, usuario_id)
     if usuario.role == 'admin':
         return redirect(url_for('certificados'))  # Redireciona o admin para a tela de certificados
     else:
@@ -331,7 +329,7 @@ def uploaded_file(filename):
 
 @app.route('/delete/<filename>', methods=['POST'])
 def delete_file(filename):
-    file_path = os.path.join(upload_folder, filename)
+    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     if os.path.exists(file_path):
         os.remove(file_path)
         flash(f'O arquivo {filename} foi deletado com sucesso!')
@@ -379,7 +377,7 @@ def listar_usuarios():
 @app.route('/editar_usuario/<int:id>', methods=['GET', 'POST'])
 @requires_admin
 def editar_usuario(id):
-    usuario = Usuario.query.get(id)
+    usuario = db.session.get(Usuario, id)
     if request.method == 'POST':
         usuario.matricula = request.form['matricula']
         usuario.nome = request.form['nome']
@@ -400,7 +398,7 @@ def editar_usuario(id):
 @app.route('/deletar_usuario/<int:id>', methods=['POST'])
 @requires_admin
 def deletar_usuario(id):
-    usuario = Usuario.query.get(id)
+    usuario = db.session.get(Usuario, id)
     try:
         db.session.delete(usuario)
         db.session.commit()
@@ -414,7 +412,7 @@ def deletar_usuario(id):
 @login_required
 def cursos():
     usuario_id = session.get('usuario_logado')
-    usuario = Usuario.query.get(usuario_id)
+    usuario = db.session.get(Usuario, usuario_id)
     if usuario.role == 'admin':
         return redirect(url_for('certificados'))  # Redireciona administradores para a tela de certificados
     else:
@@ -424,7 +422,7 @@ def cursos():
 @app.route('/aprovar/<int:certificado_id>', methods=['POST'])
 @requires_admin
 def aprovar_certificado(certificado_id):
-    certificado = Certificado.query.get(certificado_id)
+    certificado = db.session.get(Certificado, certificado_id)
     if certificado:
         certificado.aprovado = True
         
@@ -445,7 +443,7 @@ def aprovar_certificado(certificado_id):
 @app.route('/deletar_certificado/<int:certificado_id>', methods=['POST'])
 @requires_admin
 def deletar_certificado(certificado_id):
-    certificado = Certificado.query.get(certificado_id)
+    certificado = db.session.get(Certificado, certificado_id)
     if certificado:
         db.session.delete(certificado)
         db.session.commit()
