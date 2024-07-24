@@ -111,7 +111,7 @@ class UploadForm(FlaskForm):
     quantidade = IntegerField('Quantidade', validators=[Optional()])
     ano_conclusao = IntegerField('Ano de Conclusão', validators=[Optional()])
     ato_normativo = StringField('Ato Normativo', validators=[Optional()])
-    tempo = IntegerField('Tempo (meses)', validators=[Optional()])
+    tempo = IntegerField('Tempo (anos/meses)', validators=[Optional()])
     certificate = FileField('Certificado', validators=[DataRequired()])
     submit = SubmitField('Enviar')
 
