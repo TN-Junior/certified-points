@@ -286,6 +286,10 @@ def upload():
 @requires_admin
 def certificados():
     certificados = Certificado.query.all()
+    # Converter strings de data para objetos Date
+    for certificado in certificados:
+        if isinstance(certificado.periodo, str):
+            certificado.periodo = datetime.strptime(certificado.periodo, '%Y-%m-%d').date()
     return render_template('certificados.html', certificados=certificados)
 
 @app.route('/certificados_pendentes')
