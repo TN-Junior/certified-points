@@ -297,13 +297,22 @@ def certificados():
 def certificados_pendentes():
     usuario_id = session.get('usuario_logado')
     certificados = Certificado.query.filter_by(usuario_id=usuario_id, aprovado=False).all()
+    # Converter strings de data para objetos Date
+    for certificado in certificados:
+        if isinstance(certificado.periodo, str):
+            certificado.periodo = datetime.strptime(certificado.periodo, '%Y-%m-%d').date()
     return render_template('certificados_pendentes.html', certificados=certificados)
+
 
 @app.route('/certificados_aprovados')
 @login_required
 def certificados_aprovados():
     usuario_id = session.get('usuario_logado')
     certificados = Certificado.query.filter_by(usuario_id=usuario_id, aprovado=True).all()
+    # Converter strings de data para objetos Date
+    for certificado in certificados:
+        if isinstance(certificado.periodo, str):
+            certificado.periodo = datetime.strptime(certificado.periodo, '%Y-%m-%d').date()
     return render_template('certificados_aprovados.html', certificados=certificados)
 
 @app.route('/painel')
