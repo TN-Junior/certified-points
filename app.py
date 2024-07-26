@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, session, flash, url_for, send_from_directory
+from flask import Flask, render_template, request, redirect, session, flash, url_for, send_from_directory, jsonify
 from werkzeug.utils import secure_filename
 import os
 from forms import UploadForm
@@ -74,21 +74,6 @@ class Certificado(db.Model):
     usuario_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'))
     usuario = db.relationship('Usuario', backref=db.backref('certificados', lazy=True))
 
-# Função para limpar certificados após 24 horas
-def limpar_certificados():
-    from datetime import datetime, timedelta
-    limite = datetime.now() - timedelta(hours=24)
-    certificados_para_deletar = Certificado.query.filter(Certificado.timestamp < limite).all()
-    for certificado in certificados_para_deletar:
-        db.session.delete(certificado)
-    db.session.commit()
-    print("Certificados antigos foram limpos.")
-
-# Agendar a tarefa para rodar a cada 24 horas
-def iniciar_scheduler():
-    scheduler.add_job(limpar_certificados, 'interval', hours=24)
-    scheduler.start()
-
 class Usuario(db.Model):
     __tablename__ = 'usuarios'
     id = db.Column(db.Integer, primary_key=True)
@@ -101,6 +86,13 @@ class Usuario(db.Model):
 
     def __repr__(self):
         return f'<Usuario {self.nome}>'
+
+class Message(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    content = db.Column(db.Text, nullable=False)
+    sender = db.Column(db.String(150), nullable=False)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    recipient = db.Column(db.String(150), nullable=False)  # Pode ser 'admin' para todos os admins
 
 class UploadForm(FlaskForm):
     qualificacao = SelectField(
@@ -413,19 +405,19 @@ def deletar_usuario(id):
 def cursos():
     usuario_id = session.get('usuario_logado')
     usuario = db.session.get(Usuario, usuario_id)
-    
+
     # Filtrar certificados aprovados do usuário logado
     certificados_aprovados = Certificado.query.filter_by(usuario_id=usuario_id, aprovado=True).all()
-    
+
     # Inicializar o dicionário de pontos para cada qualificação
     cursos_pontos = {qualificacao: 0 for qualificacao in QUALIFICACOES}
-    
+
     # Somar os pontos dos certificados aprovados do usuário logado
     for certificado in certificados_aprovados:
         cursos_pontos[certificado.qualificacao] += certificado.pontos
-    
+
     cursos_list = [{'nome': nome, 'pontos': pontos} for nome, pontos in cursos_pontos.items()]
-    
+
     return render_template('cursos.html', cursos=cursos_list, usuario=usuario)
 
 @app.route('/aprovar/<int:certificado_id>', methods=['POST'])
@@ -434,12 +426,12 @@ def aprovar_certificado(certificado_id):
     certificado = db.session.get(Certificado, certificado_id)
     if certificado:
         certificado.aprovado = True
-        
+
         # Adicionar pontos ao usuário específico que submeteu o certificado
         usuario = db.session.get(Usuario, certificado.usuario_id)
         if usuario:
             usuario.pontuacao += certificado.pontos
-        
+
         db.session.commit()
         flash('Certificado aprovado e pontos adicionados ao usuário!')
         return redirect(url_for('certificados'))
@@ -459,6 +451,35 @@ def deletar_certificado(certificado_id):
         flash('Certificado não encontrado.')
     return redirect(url_for('certificados'))
 
+
+@app.route('/api/mensagens_usuario', methods=['POST'])
+@login_required
+def api_post_mensagens_usuario():
+    data = request.get_json()
+    mensagem_content = data.get('mensagem')
+    sender = session.get('usuario_logado')
+    recipient = 'admin'  # Todas as mensagens são enviadas para os administradores
+
+    if not mensagem_content:
+        return jsonify({'error': 'Mensagem não pode ser vazia'}), 400
+
+    nova_mensagem = Message(content=mensagem_content, sender=sender, recipient=recipient)
+    db.session.add(nova_mensagem)
+    db.session.commit()
+
+    return jsonify({'success': 'Mensagem enviada com sucesso'})
+
+
+@app.route('/api/mensagens', methods=['GET'])
+def api_get_mensagens():
+    if not session.get('usuario_logado') or session.get('usuario_role') != 'admin':
+        return jsonify({'error': 'Acesso negado'}), 403
+
+    mensagens = Message.query.filter_by(recipient='admin').order_by(Message.timestamp.desc()).all()
+    mensagens_json = [{'sender': m.sender, 'content': m.content, 'timestamp': m.timestamp.strftime('%Y-%m-%d %H:%M:%S')} for m in mensagens]
+    return jsonify(mensagens_json)
+
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
@@ -468,6 +489,4 @@ if __name__ == '__main__':
                 curso = Curso(nome=nome)
                 db.session.add(curso)
         db.session.commit()
-        
-        iniciar_scheduler()
     app.run(host='0.0.0.0', port=5000, debug=True)

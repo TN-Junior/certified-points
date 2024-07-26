@@ -85,13 +85,14 @@
                             {% if session['usuario_role'] == 'admin' %}
                                 <a class="dropdown-item" href="/certificados">Painel</a>
                                 <a class="dropdown-item" href="/usuarios">Usuários</a>
+                                <a class="dropdown-item" href="#" data-toggle="modal" data-target="#mensagensModal">Mensagens</a>
                             {% else %}
                                 <a class="dropdown-item" href="/cursos">Painel</a>
                                 <a class="dropdown-item" href="/certificados_pendentes">Certificados Pendentes</a>
                                 <a class="dropdown-item" href="/certificados_aprovados">Certificados Aprovados</a>
                                 <a class="dropdown-item" href="/upload">Upload</a>
+                                <a class="dropdown-item" href="#" data-toggle="modal" data-target="#mensagemUsuarioModal">Mensagens</a>
                             {% endif %}
-                            <a class="dropdown-item" href="#">Mensagens</a>
                             <div class="dropdown-divider"></div>
                             <a class="dropdown-item" href="{{ url_for('logout') }}">Sair</a>
                         </div>
@@ -121,15 +122,97 @@
         </div>
     </footer>
 
+    <!-- Modal de Mensagens para Usuários Comuns -->
+    <div class="modal fade" id="mensagemUsuarioModal" tabindex="-1" role="dialog" aria-labelledby="mensagemUsuarioModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="mensagemUsuarioModalLabel">Enviar Mensagem</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <!-- Formulário para enviar mensagem -->
+                    <form id="mensagemUsuarioForm">
+                        <div class="form-group">
+                            <label for="mensagemUsuario">Mensagem</label>
+                            <textarea class="form-control" id="mensagemUsuario" name="mensagem" rows="3" required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Enviar</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Mensagens para Administradores -->
+    <div class="modal fade" id="mensagensModal" tabindex="-1" role="dialog" aria-labelledby="mensagensModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="mensagensModalLabel">Mensagens</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <!-- Container para exibir mensagens -->
+                    <div id="mensagens-container"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Fechar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
-        window.setTimeout(function() {
-            const messages = document.getElementById('messages');
-            if (messages) {
-                messages.style.display = 'none';
+        $(document).ready(function() {
+            // Carregar mensagens quando o modal for aberto
+            $('#mensagensModal').on('show.bs.modal', function (event) {
+                loadMessages();
+            });
+
+            // Função para carregar mensagens
+            function loadMessages() {
+                const mensagensContainer = $('#mensagens-container');
+
+                $.get('/api/mensagens', function (data) {
+                    if (data.error) {
+                        mensagensContainer.html('<p>' + data.error + '</p>');
+                    } else {
+                        mensagensContainer.html('');
+                        data.forEach(function (mensagem) {
+                            mensagensContainer.append('<div class="alert alert-secondary"><strong>' + mensagem.sender + '</strong> em ' + mensagem.timestamp + ':<br>' + mensagem.content + '</div>');
+                        });
+                    }
+                });
             }
-        }, 3000);
+
+            // Enviar nova mensagem de usuários comuns
+            $('#mensagemUsuarioForm').submit(function(event) {
+                event.preventDefault();
+                const mensagem = $('#mensagemUsuario').val();
+
+                $.ajax({
+                    type: 'POST',
+                    url: '/api/mensagens_usuario',
+                    data: JSON.stringify({ mensagem: mensagem }),
+                    contentType: 'application/json',
+                    success: function(response) {
+                        $('#mensagemUsuario').val(''); // Limpar o campo de mensagem
+                        $('#mensagemUsuarioModal').modal('hide'); // Fechar o modal
+                        alert('Mensagem enviada com sucesso!');
+                    },
+                    error: function(response) {
+                        alert('Erro ao enviar mensagem');
+                    }
+                });
+            });
+        });
     </script>
-    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
 </body>
