@@ -184,14 +184,21 @@ def verify_password(stored_password, provided_password):
         return False
 
 def generate_protocol(usuario_id):
-    last_certificate = Certificado.query.filter_by(usuario_id=usuario_id).order_by(Certificado.id.desc()).first()
+    current_year = datetime.now().year
+    last_certificate = Certificado.query.filter(
+        Certificado.usuario_id == usuario_id,
+        Certificado.protocolo.like(f"{current_year}-%")
+    ).order_by(Certificado.id.desc()).first()
+
     if last_certificate:
         last_protocol = last_certificate.protocolo
         last_number = int(last_protocol.split('-')[-1])
         new_number = last_number + 1
     else:
         new_number = 1
-    return f"{usuario_id}-{new_number}"
+
+    new_protocol = f"{current_year}-{new_number:04d}"
+    return new_protocol
 
 @app.route('/')
 def index():
