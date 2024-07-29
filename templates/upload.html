@@ -34,7 +34,7 @@
             {{ form.tempo.label(class="form-label") }}
             {{ form.tempo(class="form-control") }}
         </div>
-        <div id="field-certificate" class="form-group" style="display: none;">
+        <div id="field-certificate" class="form-group">
             {{ form.certificate.label(class="form-label") }}
             {{ form.certificate(class="form-control") }}
         </div>
@@ -94,6 +94,7 @@ document.getElementById('next-button').addEventListener('click', function() {
         document.getElementById('field-tempo').style.display = 'block';
     }
 
+    document.getElementById('field-certificate').style.display = 'block';
     document.getElementById('next-fields').style.display = 'block';
     this.style.display = 'none';
 });

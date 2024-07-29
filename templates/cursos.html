@@ -1,6 +1,5 @@
 {% extends "base.html" %}
 
-
 {% block title %}
 Cursos
 {% endblock %}
@@ -14,6 +13,7 @@ Cursos
                 <tr>
                     <th>Curso</th>
                     <th>Pontos</th>
+                    <th>Horas Excedentes</th>
                 </tr>
             </thead>
             <tbody>
@@ -22,6 +22,9 @@ Cursos
                     <td>{{ curso.nome }}</td>
                     <td>
                         <input type="text" class="form-control" value="{{ curso.pontos }}" readonly>
+                    </td>
+                    <td>
+                        <input type="text" class="form-control" value="{{ curso.horas_excedentes }}" readonly>
                     </td>
                 </tr>
                 {% endfor %}

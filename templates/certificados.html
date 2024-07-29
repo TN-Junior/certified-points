@@ -1,6 +1,5 @@
 {% extends "base.html" %}
 
-
 {% block title %}Certificados - CertiFlow{% endblock %}
 
 {% block content %}
@@ -11,11 +10,12 @@
             <th>Usuário</th>
             <th>Matrícula</th>
             <th>Qualificação</th>
-            <th>Protocolo</th> <!-- Adicionado campo de Protocolo -->
+            <th>Protocolo</th>
             <th>Período</th>
             <th>Carga Horária</th>
             <th>Quantidade</th>
             <th>Pontos</th>
+            <th>Horas Excedentes</th>
             <th>Ano de Conclusão</th>
             <th>Ato Normativo</th>
             <th>Tempo (anos)</th>
@@ -30,11 +30,12 @@
             <td>{{ certificado.usuario.nome }}</td>
             <td>{{ certificado.usuario.matricula }}</td>
             <td>{{ certificado.qualificacao }}</td>
-            <td>{{ certificado.protocolo }}</td> <!-- Exibe o protocolo -->
+            <td>{{ certificado.protocolo }}</td>
             <td>{{ certificado.periodo.strftime('%d/%m/%Y') if certificado.periodo else '' }}</td>
             <td>{{ certificado.carga_horaria }}</td>
             <td>{{ certificado.quantidade }}</td>
             <td>{{ certificado.pontos }}</td>
+            <td>{{ certificado.horas_excedentes }}</td>
             <td>{{ certificado.ano_conclusao }}</td>
             <td>{{ certificado.ato_normativo }}</td>
             <td>{{ certificado.tempo }}</td>

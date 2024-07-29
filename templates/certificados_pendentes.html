@@ -23,7 +23,7 @@
         <tr>
             <td>{{ certificado.qualificacao }}</td>
             <td>{{ certificado.protocolo }}</td>
-            <td>{{ certificado.periodo.strftime('%d/%m/%Y') }}</td>
+            <td>{{ certificado.periodo.strftime('%d/%m/%Y') if certificado.periodo else '' }}</td>
             <td>{{ certificado.carga_horaria }}</td>
             <td>{{ certificado.quantidade }}</td>
             <td>{{ certificado.ano_conclusao }}</td>

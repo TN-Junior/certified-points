@@ -66,6 +66,7 @@ class Certificado(db.Model):
     carga_horaria = db.Column(db.Integer, nullable=False)
     quantidade = db.Column(db.Integer, nullable=True)
     pontos = db.Column(db.Integer, nullable=False)
+    horas_excedentes = db.Column(db.Integer, nullable=False, default=0)  # Novo campo
     ano_conclusao = db.Column(db.Integer, nullable=True)
     ato_normativo = db.Column(db.String(100), nullable=True)
     tempo = db.Column(db.Integer, nullable=True)
@@ -76,6 +77,7 @@ class Certificado(db.Model):
     curso = db.relationship('Curso', backref=db.backref('certificados', lazy=True))
     usuario_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'))
     usuario = db.relationship('Usuario', backref=db.backref('certificados', lazy=True))
+
 
 class Usuario(db.Model):
     __tablename__ = 'usuarios'
@@ -141,24 +143,30 @@ def calcular_pontos(certificado_data):
     horas = certificado_data['horas']
     tempo = certificado_data.get('tempo', 0)
     pontos = 0
+    horas_excedentes = 0
 
     if qualificacao == 'Cursos, seminários, congressos e oficinas realizados, promovidos, articulados ou admitidos pelo Município do Recife.':
         pontos = (horas // 20) * 2
+        horas_excedentes = horas % 20
     elif qualificacao == 'Cursos de atualização realizados, promovidos, articulados ou admitidos pelo Município do Recife.':
         if horas >= 40:
             pontos = 5
+            horas_excedentes = horas - 40
     elif qualificacao == 'Cursos de aperfeiçoamento realizados, promovidos, articulados ou admitidos pelo Município do Recife.':
         if horas >= 180:
             pontos = 10
+            horas_excedentes = horas - 180
     elif qualificacao == 'Cursos de graduação e especialização realizados em instituição pública ou privada, reconhecida pelo MEC.':
         if horas >= 360:
             pontos = 20
+            horas_excedentes = horas - 360
     elif qualificacao == 'Mestrado, doutorado e pós-doutorado realizados em instituição pública ou privada, reconhecida pelo MEC.':
         pontos = 30
     elif qualificacao == 'Instrutoria ou Coordenação de cursos promovidos pelo Município do Recife.':
         pontos = (horas // 8) * 2
         if pontos > 10:
             pontos = 10
+        horas_excedentes = horas % 8
     elif qualificacao == 'Participação em grupos, equipes, comissões e projetos especiais, no âmbito do Município do Recife, formalizados por ato oficial.':
         pontos = 5
         if pontos > 10:
@@ -168,7 +176,9 @@ def calcular_pontos(certificado_data):
         if pontos > 15:
             pontos = 15
 
-    return pontos
+    return pontos, horas_excedentes
+
+
 
 def hash_password(password):
     salt = os.urandom(16)
@@ -243,16 +253,18 @@ def upload():
     form = UploadForm()
     if form.validate_on_submit():
         usuario_id = session.get('usuario_logado')
+        periodo_de = request.form.get('periodo_de')
+        periodo_ate = request.form.get('periodo_ate')
         certificado_data = {
             'qualificacao': form.qualificacao.data,
-            'periodo': form.periodo.data,
+            'periodo': periodo_de,  # Usando o período de
             'horas': form.horas.data,
             'quantidade': form.quantidade.data,
             'ano_conclusao': form.ano_conclusao.data,
             'ato_normativo': form.ato_normativo.data,
             'tempo': form.tempo.data,
         }
-        pontos = calcular_pontos(certificado_data)
+        pontos, horas_excedentes = calcular_pontos(certificado_data)
         file = form.certificate.data
         filename = secure_filename(file.filename)
 
@@ -266,11 +278,12 @@ def upload():
 
         novo_certificado = Certificado(
             protocolo=protocolo,
-            qualificacao=form.qualificacao.data,  
-            periodo=form.periodo.data,
+            qualificacao=form.qualificacao.data,
+            periodo=periodo_de,  # Usando o período de
             carga_horaria=form.horas.data,
             quantidade=form.quantidade.data,
             pontos=pontos,
+            horas_excedentes=horas_excedentes,  # Adicionar horas_excedentes
             ano_conclusao=form.ano_conclusao.data,
             ato_normativo=form.ato_normativo.data,
             tempo=form.tempo.data,
@@ -280,19 +293,21 @@ def upload():
         db.session.add(novo_certificado)
         db.session.commit()
 
-        flash('Certificado enviado com sucesso!')
-        return redirect(url_for('upload'))
+        flash('Certificado enviado com sucesso! Aguardando aprovação.')
+        return redirect(url_for('certificados'))
     return render_template('upload.html', form=form)
 
+
 @app.route('/certificados')
+@login_required
 @requires_admin
 def certificados():
     certificados = Certificado.query.all()
-    # Converter strings de data para objetos Date
     for certificado in certificados:
         if isinstance(certificado.periodo, str):
             certificado.periodo = datetime.strptime(certificado.periodo, '%Y-%m-%d').date()
     return render_template('certificados.html', certificados=certificados)
+
 
 @app.route('/certificados_pendentes')
 @login_required
@@ -449,6 +464,7 @@ def aprovar_certificado(certificado_id):
         flash('Certificado não encontrado ou você não tem permissão para aprová-lo.')
         return redirect(url_for('certificados'))
 
+
 @app.route('/deletar_certificado/<int:certificado_id>', methods=['POST'])
 @requires_admin
 def deletar_certificado(certificado_id):
@@ -460,6 +476,7 @@ def deletar_certificado(certificado_id):
     else:
         flash('Certificado não encontrado.')
     return redirect(url_for('certificados'))
+
 
 
 @app.route('/api/mensagens_usuario', methods=['POST'])
