@@ -8,38 +8,103 @@
     {{ form.hidden_tag() }}
     <div class="form-group">
         {{ form.qualificacao.label(class="form-label") }}
-        {{ form.qualificacao(class="form-control") }}
+        {{ form.qualificacao(class="form-control", id="qualificacao") }}
+    </div>
+    <div id="next-fields" style="display: none;">
+        <div id="field-periodo-de-ate" class="form-group" style="display: none;">
+            <label for="periodo-de-ate" class="form-label">Período: de, até</label>
+            <div style="display: flex; gap: 10px;">
+                <input type="date" id="periodo-de" name="periodo_de" class="form-control">
+                <input type="date" id="periodo-ate" name="periodo_ate" class="form-control">
+            </div>
+        </div>
+        <div id="field-horas" class="form-group" style="display: none;">
+            {{ form.horas.label(class="form-label") }}
+            {{ form.horas(class="form-control") }}
+        </div>
+        <div id="field-ano_conclusao" class="form-group" style="display: none;">
+            {{ form.ano_conclusao.label(class="form-label") }}
+            {{ form.ano_conclusao(class="form-control") }}
+        </div>
+        <div id="field-ato_normativo" class="form-group" style="display: none;">
+            {{ form.ato_normativo.label(class="form-label") }}
+            {{ form.ato_normativo(class="form-control") }}
+        </div>
+        <div id="field-tempo" class="form-group" style="display: none;">
+            {{ form.tempo.label(class="form-label") }}
+            {{ form.tempo(class="form-control") }}
+        </div>
+        <div id="field-certificate" class="form-group" style="display: none;">
+            {{ form.certificate.label(class="form-label") }}
+            {{ form.certificate(class="form-control") }}
+        </div>
+        <div class="form-group">
+            {{ form.submit(class="btn btn-primary") }}
+        </div>
     </div>
     <div class="form-group">
-        {{ form.periodo.label(class="form-label") }}
-        {{ form.periodo(class="form-control", type="date") }}
-    </div>
-    <div class="form-group">
-        {{ form.horas.label(class="form-label") }}
-        {{ form.horas(class="form-control") }}
-    </div>
-    <div class="form-group">
-        {{ form.quantidade.label(class="form-label") }}
-        {{ form.quantidade(class="form-control") }}
-    </div>
-    <div class="form-group">
-        {{ form.ano_conclusao.label(class="form-label") }}
-        {{ form.ano_conclusao(class="form-control") }}
-    </div>
-    <div class="form-group">
-        {{ form.ato_normativo.label(class="form-label") }}
-        {{ form.ato_normativo(class="form-control") }}
-    </div>
-    <div class="form-group">
-        {{ form.tempo.label(class="form-label") }}
-        {{ form.tempo(class="form-control") }}
-    </div>
-    <div class="form-group">
-        {{ form.certificate.label(class="form-label") }}
-        {{ form.certificate(class="form-control") }}
-    </div>
-    <div class="form-group">
-        {{ form.submit(class="btn btn-primary") }}
+        <button type="button" id="next-button" class="btn btn-primary" style="display: none;">Avançar</button>
     </div>
 </form>
+
+<script>
+document.getElementById('qualificacao').addEventListener('change', function() {
+    var selectedValue = this.value;
+    if (selectedValue) {
+        document.getElementById('next-button').style.display = 'block';
+        document.getElementById('next-fields').style.display = 'none';
+        hideAllFields();
+    } else {
+        document.getElementById('next-button').style.display = 'none';
+        document.getElementById('next-fields').style.display = 'none';
+        hideAllFields();
+    }
+});
+
+document.getElementById('next-button').addEventListener('click', function() {
+    var selectedValue = document.getElementById('qualificacao').value;
+    hideAllFields();
+
+    if (selectedValue === 'Cursos, seminários, congressos e oficinas realizados, promovidos, articulados ou admitidos pelo Município do Recife.' ||
+        selectedValue === 'Instrutoria ou Coordenação de cursos promovidos pelo Município do Recife.' ||
+        selectedValue === 'Cursos de atualização realizados, promovidos, articulados ou admitidos pelo Município do Recife.' ||
+        selectedValue === 'Cursos de aperfeiçoamento realizados, promovidos, articulados ou admitidos pelo Município do Recife.' ||
+        selectedValue === 'Exercício de cargos comissionados e funções gratificadas, ocupados, exclusivamente, no âmbito do Poder Executivo Municipal.') {
+        document.getElementById('field-periodo-de-ate').style.display = 'block';
+    }
+
+    if (selectedValue === 'Cursos, seminários, congressos e oficinas realizados, promovidos, articulados ou admitidos pelo Município do Recife.' ||
+        selectedValue === 'Instrutoria ou Coordenação de cursos promovidos pelo Município do Recife.' ||
+        selectedValue === 'Cursos de atualização realizados, promovidos, articulados ou admitidos pelo Município do Recife.' ||
+        selectedValue === 'Cursos de aperfeiçoamento realizados, promovidos, articulados ou admitidos pelo Município do Recife.') {
+        document.getElementById('field-horas').style.display = 'block';
+    }
+
+    if (selectedValue === 'Cursos de graduação e especialização realizados em instituição pública ou privada, reconhecida pelo MEC.' ||
+        selectedValue === 'Mestrado, doutorado e pós-doutorado realizados em instituição pública ou privada, reconhecida pelo MEC.') {
+        document.getElementById('field-ano_conclusao').style.display = 'block';
+    }
+
+    if (selectedValue === 'Participação em grupos, equipes, comissões e projetos especiais, no âmbito do Município do Recife, formalizados por ato oficial.' ||
+        selectedValue === 'Exercício de cargos comissionados e funções gratificadas, ocupados, exclusivamente, no âmbito do Poder Executivo Municipal.') {
+        document.getElementById('field-ato_normativo').style.display = 'block';
+    }
+
+    if (selectedValue === 'Exercício de cargos comissionados e funções gratificadas, ocupados, exclusivamente, no âmbito do Poder Executivo Municipal.') {
+        document.getElementById('field-tempo').style.display = 'block';
+    }
+
+    document.getElementById('next-fields').style.display = 'block';
+    this.style.display = 'none';
+});
+
+function hideAllFields() {
+    document.getElementById('field-periodo-de-ate').style.display = 'none';
+    document.getElementById('field-horas').style.display = 'none';
+    document.getElementById('field-ano_conclusao').style.display = 'none';
+    document.getElementById('field-ato_normativo').style.display = 'none';
+    document.getElementById('field-tempo').style.display = 'none';
+    document.getElementById('field-certificate').style.display = 'none';
+}
+</script>
 {% endblock %}
