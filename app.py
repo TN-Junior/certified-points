@@ -30,6 +30,9 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     'pool_pre_ping': True
 }
 
+# Configuração para tornar a sessão não permanente, ou seja, expira quando o navegador é fechado "Desloga ao fechar guia ou navegador"
+app.config['SESSION_PERMANENT'] = False
+
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 
