@@ -11,7 +11,8 @@
             <th>Matrícula</th>
             <th>Qualificação</th>
             <th>Protocolo</th>
-            <th>Período</th>
+            <th>Período (de)</th>
+            <th>Período (até)</th>
             <th>Carga Horária</th>
             <th>Quantidade</th>
             <th>Pontos</th>
@@ -31,7 +32,8 @@
             <td>{{ certificado.usuario.matricula }}</td>
             <td>{{ certificado.qualificacao }}</td>
             <td>{{ certificado.protocolo }}</td>
-            <td>{{ certificado.periodo.strftime('%d/%m/%Y') if certificado.periodo else '' }}</td>
+            <td>{{ certificado.periodo_de.strftime('%d/%m/%Y') if certificado.periodo_de else '' }}</td>
+            <td>{{ certificado.periodo_ate.strftime('%d/%m/%Y') if certificado.periodo_ate else '' }}</td>
             <td>{{ certificado.carga_horaria }}</td>
             <td>{{ certificado.quantidade }}</td>
             <td>{{ certificado.pontos }}</td>
