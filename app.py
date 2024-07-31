@@ -10,14 +10,16 @@ from flask_wtf import FlaskForm
 from wtforms.validators import DataRequired, Optional
 from functools import wraps
 from flask_migrate import Migrate
-from sqlalchemy import create_engine
 from apscheduler.schedulers.background import BackgroundScheduler
 import pytz
 import pyscrypt
 from datetime import datetime
 
-app = Flask(__name__)
+# Carregar variáveis de ambiente
 load_dotenv()
+
+# Configuração do aplicativo Flask
+app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY')
 app.config['UPLOAD_FOLDER'] = os.getenv('UPLOAD_FOLDER')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
@@ -29,15 +31,17 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     'pool_recycle': 3600,
     'pool_pre_ping': True
 }
-
 app.config['SESSION_PERMANENT'] = False
 
+# Inicialização do SQLAlchemy e migrações
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 
+# Configuração de fuso horário e agendador
 timezone = pytz.timezone('America/Recife')
 scheduler = BackgroundScheduler(timezone=timezone)
 
+# Constantes
 QUALIFICACOES = [
     "Cursos, seminários, congressos e oficinas realizados, promovidos, articulados ou admitidos pelo Município do Recife.",
     "Cursos de atualização realizados, promovidos, articulados ou admitidos pelo Município do Recife.",
@@ -49,6 +53,7 @@ QUALIFICACOES = [
     "Exercício de cargos comissionados e funções gratificadas, ocupados, exclusivamente, no âmbito do Poder Executivo Municipal."
 ]
 
+# Modelos
 class Curso(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nome = db.Column(db.String(200), nullable=False)
@@ -58,7 +63,8 @@ class Certificado(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     protocolo = db.Column(db.String(50), unique=True, nullable=False)
     qualificacao = db.Column(db.String(255), nullable=False)
-    periodo = db.Column(db.Date, nullable=True)
+    periodo_de = db.Column(db.Date, nullable=True)
+    periodo_ate = db.Column(db.Date, nullable=True)
     carga_horaria = db.Column(db.Integer, nullable=False)
     quantidade = db.Column(db.Integer, nullable=True)
     pontos = db.Column(db.Integer, nullable=False)
@@ -94,16 +100,15 @@ class Message(db.Model):
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     recipient = db.Column(db.String(150), nullable=False)
 
+# Formulários
 class UploadForm(FlaskForm):
     qualificacao = SelectField(
         'Qualificação',
-        choices=[
-            ('', 'Selecione'),
-            *[(qualificacao, qualificacao) for qualificacao in QUALIFICACOES]
-        ],
+        choices=[('', 'Selecione')] + [(qualificacao, qualificacao) for qualificacao in QUALIFICACOES],
         validators=[DataRequired(message="Selecione uma qualificação.")]
     )
-    periodo = DateField('Período', validators=[Optional()])
+    periodo_de = DateField('Período (de)', validators=[Optional()])
+    periodo_ate = DateField('Período (até)', validators=[Optional()])
     horas = IntegerField('Horas', validators=[DataRequired()])
     quantidade = IntegerField('Quantidade', validators=[Optional()])
     ano_conclusao = IntegerField('Ano de Conclusão', validators=[Optional()])
@@ -112,6 +117,7 @@ class UploadForm(FlaskForm):
     certificate = FileField('Certificado', validators=[DataRequired()])
     submit = SubmitField('Enviar')
 
+# Funções utilitárias
 def requires_admin(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -136,19 +142,19 @@ def login_required(f):
 def parse_date(date_string):
     try:
         return datetime.strptime(date_string, '%Y-%m-%d').date()
-    except ValueError:
+    except (ValueError, TypeError):
         return None
 
 def calcular_pontos(certificado_data):
     qualificacao = certificado_data['qualificacao']
     horas = certificado_data['horas']
-    tempo = certificado_data['tempo']
+    tempo = certificado_data.get('tempo', 0)
     pontos = 0
     horas_excedentes = 0
 
     if qualificacao == 'Cursos, seminários, congressos e oficinas realizados, promovidos, articulados ou admitidos pelo Município do Recife.':
-        pontos = (horas // 20) * 2  # Calcula pontos baseados em múltiplos de 20 horas
-        horas_excedentes = horas % 20  # Calcula horas excedentes
+        pontos = (horas // 20) * 2
+        horas_excedentes = horas % 20
     elif qualificacao == 'Cursos de atualização realizados, promovidos, articulados ou admitidos pelo Município do Recife.':
         if horas >= 40:
             pontos = 5
@@ -194,7 +200,6 @@ def verify_password(stored_password, provided_password):
         return stored_hash == provided_hash
     except ValueError as e:
         print(f"Erro ao verificar a senha: {e}")
-        print(f"stored_password: {stored_password}")
         return False
 
 def generate_protocol(usuario_id):
@@ -214,6 +219,7 @@ def generate_protocol(usuario_id):
     new_protocol = f"{current_year}-{new_number:04d}"
     return new_protocol
 
+# Rotas
 @app.route('/')
 def index():
     return render_template('home.html', titulo='Bem-vindo ao Certification')
@@ -233,10 +239,7 @@ def autenticar():
         session['usuario_role'] = usuario_db.role
 
         flash(f'{usuario_db.nome} logado com sucesso!')
-        if usuario_db.role == 'admin':
-            return redirect(url_for('certificados'))
-        else:
-            return redirect(url_for('upload'))
+        return redirect(url_for('certificados') if usuario_db.role == 'admin' else url_for('upload'))
     else:
         flash('Usuário ou senha inválidos.')
         return redirect('/login')
@@ -254,10 +257,11 @@ def upload():
     form = UploadForm()
     if form.validate_on_submit():
         usuario_id = session.get('usuario_logado')
-        periodo_de = request.form.get('periodo_de')
+        periodo_de = form.periodo_de.data
+        periodo_ate = form.periodo_ate.data
+
         certificado_data = {
             'qualificacao': form.qualificacao.data,
-            'periodo': periodo_de,
             'horas': form.horas.data,
             'quantidade': form.quantidade.data,
             'ano_conclusao': form.ano_conclusao.data,
@@ -279,7 +283,8 @@ def upload():
         novo_certificado = Certificado(
             protocolo=protocolo,
             qualificacao=form.qualificacao.data,
-            periodo=parse_date(periodo_de),  # Usando a função de parseamento de data
+            periodo_de=periodo_de,
+            periodo_ate=periodo_ate,
             carga_horaria=form.horas.data,
             quantidade=form.quantidade.data,
             pontos=pontos,
@@ -302,9 +307,6 @@ def upload():
 @requires_admin
 def certificados():
     certificados = Certificado.query.all()
-    for certificado in certificados:
-        if isinstance(certificado.periodo, str):
-            certificado.periodo = parse_date(certificado.periodo)
     return render_template('certificados.html', certificados=certificados)
 
 @app.route('/certificados_pendentes')
@@ -312,9 +314,6 @@ def certificados():
 def certificados_pendentes():
     usuario_id = session.get('usuario_logado')
     certificados = Certificado.query.filter_by(usuario_id=usuario_id, aprovado=False).all()
-    for certificado in certificados:
-        if isinstance(certificado.periodo, str):
-            certificado.periodo = parse_date(certificado.periodo)
     return render_template('certificados_pendentes.html', certificados=certificados)
 
 @app.route('/certificados_aprovados')
@@ -322,9 +321,6 @@ def certificados_pendentes():
 def certificados_aprovados():
     usuario_id = session.get('usuario_logado')
     certificados = Certificado.query.filter_by(usuario_id=usuario_id, aprovado=True).all()
-    for certificado in certificados:
-        if isinstance(certificado.periodo, str):
-            certificado.periodo = parse_date(certificado.periodo)
     return render_template('certificados_aprovados.html', certificados=certificados)
 
 @app.route('/painel')
@@ -332,10 +328,7 @@ def certificados_aprovados():
 def painel():
     usuario_id = session.get('usuario_logado')
     usuario = db.session.get(Usuario, usuario_id)
-    if usuario.role == 'admin':
-        return redirect(url_for('certificados'))
-    else:
-        return render_template('painel.html', usuario=usuario)
+    return redirect(url_for('certificados') if usuario.role == 'admin' else url_for('upload'))
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
@@ -423,22 +416,19 @@ def cursos():
     usuario_id = session.get('usuario_logado')
     certificados_aprovados = Certificado.query.filter_by(usuario_id=usuario_id, aprovado=True).all()
 
-    cursos_pontos_excedentes = {qualificacao: {'pontos': 0, 'horas_excedentes': 0} for qualificacao in QUALIFICACOES}
+    cursos_excedentes = {qualificacao: 0 for qualificacao in QUALIFICACOES}
 
     for certificado in certificados_aprovados:
-        cursos_pontos_excedentes[certificado.qualificacao]['pontos'] += certificado.pontos
-        cursos_pontos_excedentes[certificado.qualificacao]['horas_excedentes'] += certificado.horas_excedentes
+        cursos_excedentes[certificado.qualificacao] += certificado.horas_excedentes
 
     cursos_list = [
         {
             'nome': nome, 
-            'pontos': data['pontos'], 
-            'horas_excedentes': data['horas_excedentes']
-        } for nome, data in cursos_pontos_excedentes.items()
+            'horas_excedentes': horas_excedentes
+        } for nome, horas_excedentes in cursos_excedentes.items()
     ]
 
     return render_template('cursos.html', cursos=cursos_list)
-
 
 @app.route('/aprovar/<int:certificado_id>', methods=['POST'])
 @requires_admin
@@ -446,17 +436,14 @@ def aprovar_certificado(certificado_id):
     certificado = db.session.get(Certificado, certificado_id)
     if certificado:
         certificado.aprovado = True
-
         usuario = db.session.get(Usuario, certificado.usuario_id)
         if usuario:
             usuario.pontuacao += certificado.pontos
-
         db.session.commit()
         flash('Certificado aprovado e pontos adicionados ao usuário!')
-        return redirect(url_for('certificados'))
     else:
         flash('Certificado não encontrado ou você não tem permissão para aprová-lo.')
-        return redirect(url_for('certificados'))
+    return redirect(url_for('certificados'))
 
 @app.route('/deletar_certificado/<int:certificado_id>', methods=['POST'])
 @requires_admin
