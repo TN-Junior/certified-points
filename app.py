@@ -416,16 +416,18 @@ def cursos():
     usuario_id = session.get('usuario_logado')
     certificados_aprovados = Certificado.query.filter_by(usuario_id=usuario_id, aprovado=True).all()
 
-    cursos_excedentes = {qualificacao: 0 for qualificacao in QUALIFICACOES}
+    cursos_excedentes = {qualificacao: {'pontos': 0, 'horas_excedentes': 0} for qualificacao in QUALIFICACOES}
 
     for certificado in certificados_aprovados:
-        cursos_excedentes[certificado.qualificacao] += certificado.horas_excedentes
+        cursos_excedentes[certificado.qualificacao]['pontos'] += certificado.pontos
+        cursos_excedentes[certificado.qualificacao]['horas_excedentes'] += certificado.horas_excedentes
 
     cursos_list = [
         {
-            'nome': nome, 
-            'horas_excedentes': horas_excedentes
-        } for nome, horas_excedentes in cursos_excedentes.items()
+            'nome': nome,
+            'pontos': data['pontos'],
+            'horas_excedentes': data['horas_excedentes']
+        } for nome, data in cursos_excedentes.items()
     ]
 
     return render_template('cursos.html', cursos=cursos_list)
