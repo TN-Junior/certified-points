@@ -30,17 +30,14 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     'pool_pre_ping': True
 }
 
-# Configuração para tornar a sessão não permanente, ou seja, expira quando o navegador é fechado "Desloga ao fechar guia ou navegador"
 app.config['SESSION_PERMANENT'] = False
 
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 
-# Configurar a timezone e o scheduler
 timezone = pytz.timezone('America/Recife')
 scheduler = BackgroundScheduler(timezone=timezone)
 
-# Lista de qualificações
 QUALIFICACOES = [
     "Cursos, seminários, congressos e oficinas realizados, promovidos, articulados ou admitidos pelo Município do Recife.",
     "Cursos de atualização realizados, promovidos, articulados ou admitidos pelo Município do Recife.",
@@ -52,7 +49,6 @@ QUALIFICACOES = [
     "Exercício de cargos comissionados e funções gratificadas, ocupados, exclusivamente, no âmbito do Poder Executivo Municipal."
 ]
 
-# Modelos de dados
 class Curso(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nome = db.Column(db.String(200), nullable=False)
@@ -66,7 +62,7 @@ class Certificado(db.Model):
     carga_horaria = db.Column(db.Integer, nullable=False)
     quantidade = db.Column(db.Integer, nullable=True)
     pontos = db.Column(db.Integer, nullable=False)
-    horas_excedentes = db.Column(db.Integer, nullable=False, default=0)  # Novo campo
+    horas_excedentes = db.Column(db.Integer, nullable=False, default=0)
     ano_conclusao = db.Column(db.Integer, nullable=True)
     ato_normativo = db.Column(db.String(100), nullable=True)
     tempo = db.Column(db.Integer, nullable=True)
@@ -77,7 +73,6 @@ class Certificado(db.Model):
     curso = db.relationship('Curso', backref=db.backref('certificados', lazy=True))
     usuario_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'))
     usuario = db.relationship('Usuario', backref=db.backref('certificados', lazy=True))
-
 
 class Usuario(db.Model):
     __tablename__ = 'usuarios'
@@ -97,7 +92,7 @@ class Message(db.Model):
     content = db.Column(db.Text, nullable=False)
     sender = db.Column(db.String(150), nullable=False)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
-    recipient = db.Column(db.String(150), nullable=False)  # Pode ser 'admin' para todos os admins
+    recipient = db.Column(db.String(150), nullable=False)
 
 class UploadForm(FlaskForm):
     qualificacao = SelectField(
@@ -138,16 +133,22 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+def parse_date(date_string):
+    try:
+        return datetime.strptime(date_string, '%Y-%m-%d').date()
+    except ValueError:
+        return None
+
 def calcular_pontos(certificado_data):
     qualificacao = certificado_data['qualificacao']
     horas = certificado_data['horas']
-    tempo = certificado_data.get('tempo', 0)
+    tempo = certificado_data['tempo']
     pontos = 0
     horas_excedentes = 0
 
     if qualificacao == 'Cursos, seminários, congressos e oficinas realizados, promovidos, articulados ou admitidos pelo Município do Recife.':
-        pontos = (horas // 20) * 2
-        horas_excedentes = horas % 20
+        pontos = (horas // 20) * 2  # Calcula pontos baseados em múltiplos de 20 horas
+        horas_excedentes = horas % 20  # Calcula horas excedentes
     elif qualificacao == 'Cursos de atualização realizados, promovidos, articulados ou admitidos pelo Município do Recife.':
         if horas >= 40:
             pontos = 5
@@ -162,6 +163,7 @@ def calcular_pontos(certificado_data):
             horas_excedentes = horas - 360
     elif qualificacao == 'Mestrado, doutorado e pós-doutorado realizados em instituição pública ou privada, reconhecida pelo MEC.':
         pontos = 30
+        horas_excedentes = 0
     elif qualificacao == 'Instrutoria ou Coordenação de cursos promovidos pelo Município do Recife.':
         pontos = (horas // 8) * 2
         if pontos > 10:
@@ -175,10 +177,9 @@ def calcular_pontos(certificado_data):
         pontos = (tempo // 6) * 10
         if pontos > 15:
             pontos = 15
+        horas_excedentes = 0
 
     return pontos, horas_excedentes
-
-
 
 def hash_password(password):
     salt = os.urandom(16)
@@ -254,10 +255,9 @@ def upload():
     if form.validate_on_submit():
         usuario_id = session.get('usuario_logado')
         periodo_de = request.form.get('periodo_de')
-        periodo_ate = request.form.get('periodo_ate')
         certificado_data = {
             'qualificacao': form.qualificacao.data,
-            'periodo': periodo_de,  # Usando o período de
+            'periodo': periodo_de,
             'horas': form.horas.data,
             'quantidade': form.quantidade.data,
             'ano_conclusao': form.ano_conclusao.data,
@@ -279,11 +279,11 @@ def upload():
         novo_certificado = Certificado(
             protocolo=protocolo,
             qualificacao=form.qualificacao.data,
-            periodo=periodo_de,  # Usando o período de
+            periodo=parse_date(periodo_de),  # Usando a função de parseamento de data
             carga_horaria=form.horas.data,
             quantidade=form.quantidade.data,
             pontos=pontos,
-            horas_excedentes=horas_excedentes,  # Adicionar horas_excedentes
+            horas_excedentes=horas_excedentes,
             ano_conclusao=form.ano_conclusao.data,
             ato_normativo=form.ato_normativo.data,
             tempo=form.tempo.data,
@@ -297,7 +297,6 @@ def upload():
         return redirect(url_for('certificados'))
     return render_template('upload.html', form=form)
 
-
 @app.route('/certificados')
 @login_required
 @requires_admin
@@ -305,31 +304,27 @@ def certificados():
     certificados = Certificado.query.all()
     for certificado in certificados:
         if isinstance(certificado.periodo, str):
-            certificado.periodo = datetime.strptime(certificado.periodo, '%Y-%m-%d').date()
+            certificado.periodo = parse_date(certificado.periodo)
     return render_template('certificados.html', certificados=certificados)
-
 
 @app.route('/certificados_pendentes')
 @login_required
 def certificados_pendentes():
     usuario_id = session.get('usuario_logado')
     certificados = Certificado.query.filter_by(usuario_id=usuario_id, aprovado=False).all()
-    # Converter strings de data para objetos Date
     for certificado in certificados:
         if isinstance(certificado.periodo, str):
-            certificado.periodo = datetime.strptime(certificado.periodo, '%Y-%m-%d').date()
+            certificado.periodo = parse_date(certificado.periodo)
     return render_template('certificados_pendentes.html', certificados=certificados)
-
 
 @app.route('/certificados_aprovados')
 @login_required
 def certificados_aprovados():
     usuario_id = session.get('usuario_logado')
     certificados = Certificado.query.filter_by(usuario_id=usuario_id, aprovado=True).all()
-    # Converter strings de data para objetos Date
     for certificado in certificados:
         if isinstance(certificado.periodo, str):
-            certificado.periodo = datetime.strptime(certificado.periodo, '%Y-%m-%d').date()
+            certificado.periodo = parse_date(certificado.periodo)
     return render_template('certificados_aprovados.html', certificados=certificados)
 
 @app.route('/painel')
@@ -384,14 +379,12 @@ def cadastrar():
         flash(f'Erro ao cadastrar usuário: {str(e)}')
         return redirect('/signup')
 
-# Lista todos os usuários (Read)
 @app.route('/usuarios')
 @requires_admin
 def listar_usuarios():
     usuarios = Usuario.query.all()
     return render_template('usuarios.html', usuarios=usuarios)
 
-# Atualiza um usuário (Update)
 @app.route('/editar_usuario/<int:id>', methods=['GET', 'POST'])
 @requires_admin
 def editar_usuario(id):
@@ -411,7 +404,6 @@ def editar_usuario(id):
             flash(f'Erro ao atualizar usuário: {str(e)}')
     return render_template('editar_usuario.html', usuario=usuario)
 
-# Deleta um usuário (Delete)
 @app.route('/deletar_usuario/<int:id>', methods=['POST'])
 @requires_admin
 def deletar_usuario(id):
@@ -429,21 +421,24 @@ def deletar_usuario(id):
 @login_required
 def cursos():
     usuario_id = session.get('usuario_logado')
-    usuario = db.session.get(Usuario, usuario_id)
-
-    # Filtrar certificados aprovados do usuário logado
     certificados_aprovados = Certificado.query.filter_by(usuario_id=usuario_id, aprovado=True).all()
 
-    # Inicializar o dicionário de pontos para cada qualificação
-    cursos_pontos = {qualificacao: 0 for qualificacao in QUALIFICACOES}
+    cursos_pontos_excedentes = {qualificacao: {'pontos': 0, 'horas_excedentes': 0} for qualificacao in QUALIFICACOES}
 
-    # Somar os pontos dos certificados aprovados do usuário logado
     for certificado in certificados_aprovados:
-        cursos_pontos[certificado.qualificacao] += certificado.pontos
+        cursos_pontos_excedentes[certificado.qualificacao]['pontos'] += certificado.pontos
+        cursos_pontos_excedentes[certificado.qualificacao]['horas_excedentes'] += certificado.horas_excedentes
 
-    cursos_list = [{'nome': nome, 'pontos': pontos} for nome, pontos in cursos_pontos.items()]
+    cursos_list = [
+        {
+            'nome': nome, 
+            'pontos': data['pontos'], 
+            'horas_excedentes': data['horas_excedentes']
+        } for nome, data in cursos_pontos_excedentes.items()
+    ]
 
-    return render_template('cursos.html', cursos=cursos_list, usuario=usuario)
+    return render_template('cursos.html', cursos=cursos_list)
+
 
 @app.route('/aprovar/<int:certificado_id>', methods=['POST'])
 @requires_admin
@@ -452,7 +447,6 @@ def aprovar_certificado(certificado_id):
     if certificado:
         certificado.aprovado = True
 
-        # Adicionar pontos ao usuário específico que submeteu o certificado
         usuario = db.session.get(Usuario, certificado.usuario_id)
         if usuario:
             usuario.pontuacao += certificado.pontos
@@ -463,7 +457,6 @@ def aprovar_certificado(certificado_id):
     else:
         flash('Certificado não encontrado ou você não tem permissão para aprová-lo.')
         return redirect(url_for('certificados'))
-
 
 @app.route('/deletar_certificado/<int:certificado_id>', methods=['POST'])
 @requires_admin
@@ -477,15 +470,13 @@ def deletar_certificado(certificado_id):
         flash('Certificado não encontrado.')
     return redirect(url_for('certificados'))
 
-
-
 @app.route('/api/mensagens_usuario', methods=['POST'])
 @login_required
 def api_post_mensagens_usuario():
     data = request.get_json()
     mensagem_content = data.get('mensagem')
     sender = session.get('usuario_logado')
-    recipient = 'admin'  # Todas as mensagens são enviadas para os administradores
+    recipient = 'admin'
 
     if not mensagem_content:
         return jsonify({'error': 'Mensagem não pode ser vazia'}), 400
@@ -496,7 +487,6 @@ def api_post_mensagens_usuario():
 
     return jsonify({'success': 'Mensagem enviada com sucesso'})
 
-
 @app.route('/api/mensagens', methods=['GET'])
 def api_get_mensagens():
     if not session.get('usuario_logado') or session.get('usuario_role') != 'admin':
@@ -506,11 +496,9 @@ def api_get_mensagens():
     mensagens_json = [{'sender': m.sender, 'content': m.content, 'timestamp': m.timestamp.strftime('%Y-%m-%d %H:%M:%S')} for m in mensagens]
     return jsonify(mensagens_json)
 
-
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
-        # Seed inicial para garantir que os cursos estão no banco de dados
         for nome in QUALIFICACOES:
             if not Curso.query.filter_by(nome=nome).first():
                 curso = Curso(nome=nome)
