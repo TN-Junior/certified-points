@@ -422,6 +422,12 @@ def cursos():
         cursos_excedentes[certificado.qualificacao]['pontos'] += certificado.pontos
         cursos_excedentes[certificado.qualificacao]['horas_excedentes'] += certificado.horas_excedentes
 
+        # Conversão de horas excedentes em pontos adicionais
+        if certificado.qualificacao == 'Cursos, seminários, congressos e oficinas realizados, promovidos, articulados ou admitidos pelo Município do Recife.':
+            extra_pontos = cursos_excedentes[certificado.qualificacao]['horas_excedentes'] // 20 * 2
+            cursos_excedentes[certificado.qualificacao]['pontos'] += extra_pontos
+            cursos_excedentes[certificado.qualificacao]['horas_excedentes'] %= 20
+
     cursos_list = [
         {
             'nome': nome,
@@ -431,6 +437,7 @@ def cursos():
     ]
 
     return render_template('cursos.html', cursos=cursos_list)
+
 
 @app.route('/aprovar/<int:certificado_id>', methods=['POST'])
 @requires_admin
