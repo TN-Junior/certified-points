@@ -4,6 +4,7 @@
 
 {% block content %}
 <h2 class="my-4">Certificados</h2>
+{% if certificados %}
 <table class="table table-striped table-bordered table-hover">
     <thead class="thead-dark">
         <tr>
@@ -54,4 +55,7 @@
         {% endfor %}
     </tbody>
 </table>
+{% else %}
+<p>Não há certificados pendentes de aprovação no momento.</p>
+{% endif %}
 {% endblock %}

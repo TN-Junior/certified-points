@@ -328,15 +328,18 @@ def certificados():
     certificado_index = request.args.get('index', 0, type=int)
     total_certificados = Certificado.query.filter_by(aprovado=False).count()
     certificados = Certificado.query.filter_by(aprovado=False).all()
-    
+
     certificado_atual = certificados[certificado_index] if certificados else None
     next_index = certificado_index + 1 if certificado_index < total_certificados - 1 else None
     prev_index = certificado_index - 1 if certificado_index > 0 else None
 
-    return render_template('certificados.html', 
-                           certificado_atual=certificado_atual,
-                           next_index=next_index, 
-                           prev_index=prev_index)
+    return render_template(
+        'certificados.html',
+        certificado_atual=certificado_atual,
+        certificados=certificados,  # Certifique-se de que esta linha está presente
+        next_index=next_index,
+        prev_index=prev_index
+    )
 
 
 
