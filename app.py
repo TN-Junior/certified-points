@@ -65,7 +65,7 @@ class Certificado(db.Model):
     qualificacao = db.Column(db.String(255), nullable=False)
     periodo_de = db.Column(db.Date, nullable=True)
     periodo_ate = db.Column(db.Date, nullable=True)
-    carga_horaria = db.Column(db.Integer, nullable=False)
+    carga_horaria = db.Column(db.Integer, nullable=True)
     quantidade = db.Column(db.Integer, nullable=True)
     pontos = db.Column(db.Integer, nullable=False)
     horas_excedentes = db.Column(db.Integer, nullable=False, default=0)
@@ -109,13 +109,31 @@ class UploadForm(FlaskForm):
     )
     periodo_de = DateField('Período (de)', validators=[Optional()])
     periodo_ate = DateField('Período (até)', validators=[Optional()])
-    horas = IntegerField('Horas', validators=[DataRequired()])
+    horas = IntegerField('Horas', validators=[Optional()])
     quantidade = IntegerField('Quantidade', validators=[Optional()])
     ano_conclusao = IntegerField('Ano de Conclusão', validators=[Optional()])
     ato_normativo = StringField('Ato Normativo', validators=[Optional()])
     tempo = IntegerField('Tempo (anos/meses)', validators=[Optional()])
-    certificate = FileField('Certificado', validators=[DataRequired()])
+    certificate = FileField('Certificado', validators=[DataRequired(message="Certificado é obrigatório.")])
     submit = SubmitField('Enviar')
+
+    def validate(self):
+        rv = FlaskForm.validate(self)
+        if not rv:
+            return False
+
+        qualificacoes_com_horas = [
+            'Cursos, seminários, congressos e oficinas realizados, promovidos, articulados ou admitidos pelo Município do Recife.',
+            'Instrutoria ou Coordenação de cursos promovidos pelo Município do Recife.',
+            'Cursos de atualização realizados, promovidos, articulados ou admitidos pelo Município do Recife.',
+            'Cursos de aperfeiçoamento realizados, promovidos, articulados ou admitidos pelo Município do Recife.'
+        ]
+
+        if self.qualificacao.data in qualificacoes_com_horas and not self.horas.data:
+            self.horas.errors.append("Este campo é obrigatório para a qualificação selecionada.")
+            return False
+
+        return True
 
 # Funções utilitárias
 def requires_admin(f):
@@ -306,9 +324,19 @@ def upload():
 @login_required
 @requires_admin
 def certificados():
-    # Filtra apenas os certificados que não foram aprovados
+    certificado_index = request.args.get('index', 0, type=int)
+    total_certificados = Certificado.query.filter_by(aprovado=False).count()
     certificados = Certificado.query.filter_by(aprovado=False).all()
-    return render_template('certificados.html', certificados=certificados)
+    
+    certificado_atual = certificados[certificado_index] if certificados else None
+    next_index = certificado_index + 1 if certificado_index < total_certificados - 1 else None
+    prev_index = certificado_index - 1 if certificado_index > 0 else None
+
+    return render_template('certificados.html', 
+                           certificado_atual=certificado_atual,
+                           next_index=next_index, 
+                           prev_index=prev_index)
+
 
 
 @app.route('/certificados_pendentes')
