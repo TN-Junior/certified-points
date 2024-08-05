@@ -117,7 +117,7 @@ class UploadForm(FlaskForm):
     certificate = FileField('Certificado', validators=[DataRequired(message="Certificado é obrigatório.")])
     submit = SubmitField('Enviar')
 
-    def validate(self):
+    def validate(self, **kwargs):
         rv = FlaskForm.validate(self)
         if not rv:
             return False
@@ -134,6 +134,7 @@ class UploadForm(FlaskForm):
             return False
 
         return True
+
 
 # Funções utilitárias
 def requires_admin(f):
