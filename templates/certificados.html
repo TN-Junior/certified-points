@@ -11,14 +11,27 @@
             <th>Matrícula</th>
             <th>Qualificação</th>
             <th>Protocolo</th>
-            <th>Período (de)</th>
-            <th>Período (até)</th>
-            <th>Carga Horária</th>
-            <th>Quantidade</th>
-            <th>Pontos</th>
-            <th>Ano de Conclusão</th>
-            <th>Ato Normativo</th>
-            <th>Tempo (anos)</th>
+            {% for certificado in certificados %}
+                {% if certificado.qualificacao == "Cursos, seminários, congressos e oficinas realizados, promovidos, articulados ou admitidos pelo Município do Recife." or
+                       certificado.qualificacao == "Cursos de atualização realizados, promovidos, articulados ou admitidos pelo Município do Recife." or
+                       certificado.qualificacao == "Cursos de aperfeiçoamento realizados, promovidos, articulados ou admitidos pelo Município do Recife." or
+                       certificado.qualificacao == "Instrutoria ou Coordenação de cursos promovidos pelo Município do Recife." %}
+                    <th>Período (de)</th>
+                    <th>Período (até)</th>
+                    <th>Carga Horária</th>
+                {% endif %}
+                {% if certificado.qualificacao == "Cursos de graduação e especialização realizados em instituição pública ou privada, reconhecida pelo MEC." or
+                       certificado.qualificacao == "Mestrado, doutorado e pós-doutorado realizados em instituição pública ou privada, reconhecida pelo MEC." %}
+                    <th>Ano de Conclusão</th>
+                {% endif %}
+                {% if certificado.qualificacao == "Participação em grupos, equipes, comissões e projetos especiais, no âmbito do Município do Recife, formalizados por ato oficial." or
+                       certificado.qualificacao == "Exercício de cargos comissionados e funções gratificadas, ocupados, exclusivamente, no âmbito do Poder Executivo Municipal." %}
+                    <th>Ato Normativo</th>
+                {% endif %}
+                {% if certificado.qualificacao == "Exercício de cargos comissionados e funções gratificadas, ocupados, exclusivamente, no âmbito do Poder Executivo Municipal." %}
+                    <th>Tempo (anos)</th>
+                {% endif %}
+            {% endfor %}
             <th>Arquivo</th>
             <th>Aprovar</th>
             <th>Deletar</th>
@@ -31,14 +44,30 @@
             <td>{{ certificado.usuario.matricula }}</td>
             <td>{{ certificado.qualificacao }}</td>
             <td>{{ certificado.protocolo }}</td>
-            <td>{{ certificado.periodo_de.strftime('%d/%m/%Y') if certificado.periodo_de else '' }}</td>
-            <td>{{ certificado.periodo_ate.strftime('%d/%m/%Y') if certificado.periodo_ate else '' }}</td>
-            <td>{{ certificado.carga_horaria }}</td>
-            <td>{{ certificado.quantidade }}</td>
-            <td>{{ certificado.pontos }}</td>
-            <td>{{ certificado.ano_conclusao }}</td>
-            <td>{{ certificado.ato_normativo }}</td>
-            <td>{{ certificado.tempo }}</td>
+
+            {% if certificado.qualificacao == "Cursos, seminários, congressos e oficinas realizados, promovidos, articulados ou admitidos pelo Município do Recife." or
+                   certificado.qualificacao == "Cursos de atualização realizados, promovidos, articulados ou admitidos pelo Município do Recife." or
+                   certificado.qualificacao == "Cursos de aperfeiçoamento realizados, promovidos, articulados ou admitidos pelo Município do Recife." or
+                   certificado.qualificacao == "Instrutoria ou Coordenação de cursos promovidos pelo Município do Recife." %}
+                <td>{{ certificado.periodo_de.strftime('%d/%m/%Y') if certificado.periodo_de else '' }}</td>
+                <td>{{ certificado.periodo_ate.strftime('%d/%m/%Y') if certificado.periodo_ate else '' }}</td>
+                <td>{{ certificado.carga_horaria }}</td>
+            {% endif %}
+
+            {% if certificado.qualificacao == "Cursos de graduação e especialização realizados em instituição pública ou privada, reconhecida pelo MEC." or
+                   certificado.qualificacao == "Mestrado, doutorado e pós-doutorado realizados em instituição pública ou privada, reconhecida pelo MEC." %}
+                <td>{{ certificado.ano_conclusao }}</td>
+            {% endif %}
+
+            {% if certificado.qualificacao == "Participação em grupos, equipes, comissões e projetos especiais, no âmbito do Município do Recife, formalizados por ato oficial." or
+                   certificado.qualificacao == "Exercício de cargos comissionados e funções gratificadas, ocupados, exclusivamente, no âmbito do Poder Executivo Municipal." %}
+                <td>{{ certificado.ato_normativo }}</td>
+            {% endif %}
+
+            {% if certificado.qualificacao == "Exercício de cargos comissionados e funções gratificadas, ocupados, exclusivamente, no âmbito do Poder Executivo Municipal." %}
+                <td>{{ certificado.tempo }}</td>
+            {% endif %}
+
             <td><a href="{{ url_for('uploaded_file', filename=certificado.filename) }}" target="_blank" class="btn btn-info btn-sm">Download</a></td>
             <td>
                 <form action="{{ url_for('aprovar_certificado', certificado_id=certificado.id) }}" method="post">
