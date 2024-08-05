@@ -306,8 +306,10 @@ def upload():
 @login_required
 @requires_admin
 def certificados():
-    certificados = Certificado.query.all()
+    # Filtra apenas os certificados que não foram aprovados
+    certificados = Certificado.query.filter_by(aprovado=False).all()
     return render_template('certificados.html', certificados=certificados)
+
 
 @app.route('/certificados_pendentes')
 @login_required
