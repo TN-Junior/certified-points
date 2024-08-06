@@ -74,6 +74,7 @@ class Certificado(db.Model):
     tempo = db.Column(db.Integer, nullable=True)
     filename = db.Column(db.String(200), nullable=False)
     aprovado = db.Column(db.Boolean, default=False)
+    recusado = db.Column(db.Boolean, default=False)
     timestamp = db.Column(db.DateTime, default=db.func.now())
     curso_id = db.Column(db.Integer, db.ForeignKey('curso.id'))
     curso = db.relationship('Curso', backref=db.backref('certificados', lazy=True))
@@ -326,8 +327,8 @@ def upload():
 @requires_admin
 def certificados():
     certificado_index = request.args.get('index', 0, type=int)
-    total_certificados = Certificado.query.filter_by(aprovado=False).count()
-    certificados = Certificado.query.filter_by(aprovado=False).all()
+    total_certificados = Certificado.query.filter_by(aprovado=False, recusado=False).count()
+    certificados = Certificado.query.filter_by(aprovado=False, recusado=False).all()
 
     certificado_atual = certificados[certificado_index] if certificados else None
     next_index = certificado_index + 1 if certificado_index < total_certificados - 1 else None
@@ -340,7 +341,6 @@ def certificados():
         next_index=next_index,
         prev_index=prev_index
     )
-
 
 
 @app.route('/certificados_pendentes')
@@ -524,17 +524,19 @@ def aprovar_certificado(certificado_id):
         flash('Certificado não encontrado ou você não tem permissão para aprová-lo.')
     return redirect(url_for('certificados'))
 
-@app.route('/deletar_certificado/<int:certificado_id>', methods=['POST'])
+@app.route('/recusar_certificado/<int:certificado_id>', methods=['POST'])
 @requires_admin
-def deletar_certificado(certificado_id):
+def recusar_certificado(certificado_id):
     certificado = db.session.get(Certificado, certificado_id)
     if certificado:
-        db.session.delete(certificado)
+        certificado.aprovado = False
+        certificado.recusado = True
         db.session.commit()
-        flash('Certificado deletado com sucesso!')
+        flash('Certificado recusado com sucesso!')
     else:
         flash('Certificado não encontrado.')
     return redirect(url_for('certificados'))
+
 
 @app.route('/api/mensagens_usuario', methods=['POST'])
 @login_required
