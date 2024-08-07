@@ -5,56 +5,55 @@
 {% block content %}
 <h2 class="my-4">Certificados</h2>
 {% if certificados %}
-<table class="table table-striped table-bordered table-hover">
-    <thead class="thead-dark">
-        <tr>
-            <th>Usuário</th>
-            <th>Matrícula</th>
-            <th>Qualificação</th>
-            <th>Protocolo</th>
-            <th>Período (de)</th>
-            <th>Período (até)</th>
-            <th>Carga Horária</th>
-            <th>Quantidade</th>
-            <th>Pontos</th>
-            <th>Ano de Conclusão</th>
-            <th>Ato Normativo</th>
-            <th>Tempo (anos)</th>
-            <th>Arquivo</th>
-            <th>Aprovar</th>
-            <th>Deletar</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for certificado in certificados %}
-        <tr>
-            <td>{{ certificado.usuario.nome }}</td>
-            <td>{{ certificado.usuario.matricula }}</td>
-            <td>{{ certificado.qualificacao }}</td>
-            <td>{{ certificado.protocolo }}</td>
-            <td>{{ certificado.periodo_de.strftime('%d/%m/%Y') if certificado.periodo_de else '' }}</td>
-            <td>{{ certificado.periodo_ate.strftime('%d/%m/%Y') if certificado.periodo_ate else '' }}</td>
-            <td>{{ certificado.carga_horaria }}</td>
-            <td>{{ certificado.quantidade }}</td>
-            <td>{{ certificado.pontos }}</td>
-            <td>{{ certificado.ano_conclusao }}</td>
-            <td>{{ certificado.ato_normativo }}</td>
-            <td>{{ certificado.tempo }}</td>
-            <td><a href="{{ url_for('uploaded_file', filename=certificado.filename) }}" target="_blank" class="btn btn-info btn-sm">Download</a></td>
-            <td>
-                <form action="{{ url_for('aprovar_certificado', certificado_id=certificado.id) }}" method="post">
+<div class="row">
+    {% for certificado in certificados %}
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title">Certificado de {{ certificado.usuario.nome }}</h5>
+                <h6 class="card-subtitle text-muted">Matrícula: {{ certificado.usuario.matricula }}</h6>
+            </div>
+            <div class="card-body">
+                <p><strong>Qualificação:</strong> {{ certificado.qualificacao }}</p>
+                <p><strong>Protocolo:</strong> {{ certificado.protocolo }}</p>
+                {% if certificado.periodo_de %}
+                <p><strong>Período (de):</strong> {{ certificado.periodo_de.strftime('%d/%m/%Y') }}</p>
+                {% endif %}
+                {% if certificado.periodo_ate %}
+                <p><strong>Período (até):</strong> {{ certificado.periodo_ate.strftime('%d/%m/%Y') }}</p>
+                {% endif %}
+                {% if certificado.carga_horaria %}
+                <p><strong>Carga Horária:</strong> {{ certificado.carga_horaria }}</p>
+                {% endif %}
+                {% if certificado.quantidade %}
+                <p><strong>Quantidade:</strong> {{ certificado.quantidade }}</p>
+                {% endif %}
+                {% if certificado.ano_conclusao %}
+                <p><strong>Ano de Conclusão:</strong> {{ certificado.ano_conclusao }}</p>
+                {% endif %}
+                {% if certificado.ato_normativo %}
+                <p><strong>Ato Normativo:</strong> {{ certificado.ato_normativo }}</p>
+                {% endif %}
+                {% if certificado.tempo %}
+                <p><strong>Tempo (anos):</strong> {{ certificado.tempo }}</p>
+                {% endif %}
+                <p>
+                    <strong>Arquivo:</strong>
+                    <a href="{{ url_for('uploaded_file', filename=certificado.filename) }}" target="_blank" class="btn btn-info btn-sm">Download</a>
+                </p>
+            </div>
+            <div class="card-footer">
+                <form action="{{ url_for('aprovar_certificado', certificado_id=certificado.id) }}" method="post" class="d-inline">
                     <button type="submit" class="btn btn-success btn-sm">Aprovar</button>
                 </form>
-            </td>
-            <td>
-                <form action="{{ url_for('recusar_certificado', certificado_id=certificado.id) }}" method="post" onsubmit="return confirm('Tem certeza que deseja recusar este certificado?')">
+                <form action="{{ url_for('recusar_certificado', certificado_id=certificado.id) }}" method="post" class="d-inline" onsubmit="return confirm('Tem certeza que deseja recusar este certificado?')">
                     <button type="submit" class="btn btn-warning btn-sm">Recusar</button>
                 </form>
-            </td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
 {% else %}
 <p>Não há certificados pendentes de aprovação no momento.</p>
 {% endif %}
