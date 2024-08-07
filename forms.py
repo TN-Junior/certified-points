@@ -1,4 +1,4 @@
-'''
+
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileRequired, FileAllowed
 from wtforms import StringField, PasswordField, SubmitField, SelectField, IntegerField
@@ -20,4 +20,4 @@ class SignupForm(FlaskForm):
     password = PasswordField('Senha', validators=[DataRequired()])
     role = SelectField('Role', choices=[('common', 'Comum'), ('admin', 'Admin')])
     submit = SubmitField('Cadastrar')
-'''
+
