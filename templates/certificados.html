@@ -44,10 +44,10 @@
             </div>
             <div class="card-footer">
                 <form action="{{ url_for('aprovar_certificado', certificado_id=certificado.id) }}" method="post" class="d-inline">
-                    <button type="submit" class="btn btn-success btn-sm">Aprovar</button>
+                    <button type="submit" class="btn btn-primary btn-sm">Aprovar</button>
                 </form>
                 <form action="{{ url_for('recusar_certificado', certificado_id=certificado.id) }}" method="post" class="d-inline" onsubmit="return confirm('Tem certeza que deseja recusar este certificado?')">
-                    <button type="submit" class="btn btn-warning btn-sm">Recusar</button>
+                    <button type="submit" class="btn btn-danger btn-sm">Recusar</button>
                 </form>
             </div>
         </div>
