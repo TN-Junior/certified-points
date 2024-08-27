@@ -1,1 +1,1 @@
-# certified-pointss
+# certified-points
