@@ -21,3 +21,9 @@ class SignupForm(FlaskForm):
     role = SelectField('Role', choices=[('common', 'Comum'), ('admin', 'Admin')])
     submit = SubmitField('Cadastrar')
 
+
+
+class ProgressaoForm(FlaskForm):
+    # Campos gerados dinamicamente para as qualificações
+    submit = SubmitField('Salvar Progressão')
+

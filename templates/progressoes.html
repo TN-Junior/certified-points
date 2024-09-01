@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}
+Progressões
+{% endblock %}
+
+{% block content %}
+<div class="container content">
+    <h1>Progressões</h1>
+    <form>
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Qualificação</th>
+                    <th>Pontos</th>
+                    <th>Progressão</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for qualificacao, dados in progressoes.items() %}
+                <tr>
+                    <td>{{ qualificacao }}</td>
+                    <td>
+                        <input type="text" class="form-control" value="{{ dados.pontos }}" readonly>
+                    </td>
+                    <td>
+                        <input type="text" class="form-control" value="{{ dados.progressao }}" readonly>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </form>
+</div>
+
+<footer class="footer">
+    <div class="container">
+        <p>&copy; 2024 Certification. All rights reserved.</p>
+    </div>
+</footer>
+{% endblock %}

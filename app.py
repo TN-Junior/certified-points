@@ -564,6 +564,35 @@ def api_get_mensagens():
     mensagens_json = [{'sender': m.sender, 'content': m.content, 'timestamp': m.timestamp.strftime('%Y-%m-%d %H:%M:%S')} for m in mensagens]
     return jsonify(mensagens_json)
 
+@app.route('/progressoes')
+@login_required
+def progressoes():
+    usuario_id = session.get('usuario_logado')
+    
+    # Consulta os certificados aprovados do usuário
+    certificados_aprovados = Certificado.query.filter_by(usuario_id=usuario_id, aprovado=True).all()
+    
+    # Agrupar os pontos por qualificação
+    progressoes = {}
+    for certificado in certificados_aprovados:
+        qualificacao = certificado.qualificacao
+        pontos = certificado.pontos
+        
+        if qualificacao not in progressoes:
+            progressoes[qualificacao] = {'pontos': 0, 'progressao': 'Não iniciado'}
+        
+        progressoes[qualificacao]['pontos'] += pontos
+        
+        # Define a progressão com base nos pontos acumulados (exemplo)
+        if progressoes[qualificacao]['pontos'] >= 30:
+            progressoes[qualificacao]['progressao'] = 'Concluído'
+        elif progressoes[qualificacao]['pontos'] >= 15:
+            progressoes[qualificacao]['progressao'] = 'Em progresso'
+        else:
+            progressoes[qualificacao]['progressao'] = 'Não iniciado'
+
+    return render_template('progressoes.html', progressoes=progressoes)
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
