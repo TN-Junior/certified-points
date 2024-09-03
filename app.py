@@ -564,26 +564,34 @@ def api_get_mensagens():
     mensagens_json = [{'sender': m.sender, 'content': m.content, 'timestamp': m.timestamp.strftime('%Y-%m-%d %H:%M:%S')} for m in mensagens]
     return jsonify(mensagens_json)
 
-@app.route('/progressoes')
+@app.route('/progressoes', methods=['GET', 'POST'])
 @login_required
 def progressoes():
-    usuario_id = session.get('usuario_logado')
-    
-    # Consulta os certificados aprovados do usuário
+    # Busca todos os usuários cadastrados no sistema
+    usuarios = Usuario.query.all()
+    print(usuarios)  # Verifica se a lista de usuários está sendo retornada corretamente
+
+    # Obtém o ID do usuário selecionado no formulário, se houver
+    usuario_id = request.form.get('usuario')
+
+    # Caso nenhum usuário tenha sido selecionado, usa o usuário logado como padrão
+    if usuario_id:
+        usuario_id = int(usuario_id)  # Converte o ID do usuário selecionado para inteiro
+    else:
+        usuario_id = session.get('usuario_logado')
+
+    # Consulta os certificados aprovados do usuário selecionado
     certificados_aprovados = Certificado.query.filter_by(usuario_id=usuario_id, aprovado=True).all()
-    
+
     # Agrupar os pontos por qualificação
-    progressoes = {}
+    progressoes = {qual: {'pontos': 0, 'progressao': 'Não iniciado'} for qual in QUALIFICACOES}
     for certificado in certificados_aprovados:
         qualificacao = certificado.qualificacao
         pontos = certificado.pontos
-        
-        if qualificacao not in progressoes:
-            progressoes[qualificacao] = {'pontos': 0, 'progressao': 'Não iniciado'}
-        
+
         progressoes[qualificacao]['pontos'] += pontos
-        
-        # Define a progressão com base nos pontos acumulados (exemplo)
+
+        # Define a progressão com base nos pontos acumulados
         if progressoes[qualificacao]['pontos'] >= 30:
             progressoes[qualificacao]['progressao'] = 'Concluído'
         elif progressoes[qualificacao]['pontos'] >= 15:
@@ -591,7 +599,16 @@ def progressoes():
         else:
             progressoes[qualificacao]['progressao'] = 'Não iniciado'
 
-    return render_template('progressoes.html', progressoes=progressoes)
+    # Renderiza o template com a lista de usuários e progressoes
+    return render_template('progressoes.html', progressoes=progressoes, usuarios=usuarios, usuario_selecionado=usuario_id)
+
+
+    # Renderiza o template com a lista de usuários e progressoes
+    return render_template('progressoes.html', progressoes=progressoes, usuarios=usuarios, usuario_selecionado=usuario_id)
+
+
+
+
 
 if __name__ == '__main__':
     with app.app_context():

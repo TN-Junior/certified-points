@@ -6,31 +6,52 @@ Progressões
 
 {% block content %}
 <div class="container content">
-    <h1>Progressões</h1>
-    <form>
-        <table class="table table-striped">
-            <thead>
-                <tr>
-                    <th>Qualificação</th>
-                    <th>Pontos</th>
-                    <th>Progressão</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for qualificacao, dados in progressoes.items() %}
-                <tr>
-                    <td>{{ qualificacao }}</td>
-                    <td>
-                        <input type="text" class="form-control" value="{{ dados.pontos }}" readonly>
-                    </td>
-                    <td>
-                        <input type="text" class="form-control" value="{{ dados.progressao }}" readonly>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </form>
+    <div class="rectangle-container">
+        <h1>Progressões</h1>
+        <form method="post">
+            <!-- Campo para selecionar o usuário -->
+            <div class="form-group">
+                <label for="usuario">Nome do Usuário</label>
+                <select id="usuario" name="usuario" class="form-control" onchange="updateMatricula()">
+                    <option value="" {% if not usuario_selecionado %}selected{% endif %}>Selecione</option>
+                    {% for usuario in usuarios %}
+                        <option value="{{ usuario.id }}" data-matricula="{{ usuario.matricula }}" {% if usuario.id == usuario_selecionado %}selected{% endif %}>
+                            {{ usuario.nome }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Campo para exibir a matrícula do usuário selecionado, inicialmente oculto -->
+            <div class="form-group" id="matricula-group" style="display: none;">
+                <label for="matricula">Matrícula do Usuário</label>
+                <input type="text" id="matricula" class="form-control" readonly>
+            </div>
+
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Qualificação</th>
+                        <th>Pontos</th>
+                        <th>Progressão</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for qualificacao, dados in progressoes.items() %}
+                    <tr>
+                        <td>{{ qualificacao }}</td>
+                        <td>
+                            <input type="text" class="form-control" value="{{ dados.pontos }}" readonly>
+                        </td>
+                        <td>
+                            <input type="text" class="form-control" value="{{ dados.progressao }}" readonly>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </form>
+    </div>
 </div>
 
 <footer class="footer">
@@ -38,4 +59,27 @@ Progressões
         <p>&copy; 2024 Certification. All rights reserved.</p>
     </div>
 </footer>
+
+<script>
+function updateMatricula() {
+    // Obtém o elemento selecionado no dropdown
+    const usuarioSelect = document.getElementById('usuario');
+    const selectedOption = usuarioSelect.options[usuarioSelect.selectedIndex];
+    
+    // Obtém a matrícula do usuário selecionado a partir do atributo data-matricula
+    const matricula = selectedOption.getAttribute('data-matricula');
+    
+    // Referência ao grupo do campo de matrícula
+    const matriculaGroup = document.getElementById('matricula-group');
+
+    // Verifica se uma matrícula está disponível e exibe o campo, caso contrário, esconde-o
+    if (matricula) {
+        document.getElementById('matricula').value = matricula;
+        matriculaGroup.style.display = 'block'; // Mostra o campo de matrícula
+    } else {
+        matriculaGroup.style.display = 'none'; // Esconde o campo de matrícula
+        document.getElementById('matricula').value = ''; // Limpa o campo de matrícula
+    }
+}
+</script>
 {% endblock %}
