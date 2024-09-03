@@ -567,9 +567,8 @@ def api_get_mensagens():
 @app.route('/progressoes', methods=['GET', 'POST'])
 @login_required
 def progressoes():
-    # Busca todos os usuários cadastrados no sistema
-    usuarios = Usuario.query.all()
-    print(usuarios)  # Verifica se a lista de usuários está sendo retornada corretamente
+    # Busca todos os usuários cadastrados no sistema que não são administradores
+    usuarios = Usuario.query.filter(Usuario.role != 'admin').all()
 
     # Obtém o ID do usuário selecionado no formulário, se houver
     usuario_id = request.form.get('usuario')
@@ -584,27 +583,16 @@ def progressoes():
     certificados_aprovados = Certificado.query.filter_by(usuario_id=usuario_id, aprovado=True).all()
 
     # Agrupar os pontos por qualificação
-    progressoes = {qual: {'pontos': 0, 'progressao': 'Não iniciado'} for qual in QUALIFICACOES}
+    progressoes = {qual: {'pontos': 0, 'progressao': ''} for qual in QUALIFICACOES}  # Deixe progressão em branco
     for certificado in certificados_aprovados:
         qualificacao = certificado.qualificacao
         pontos = certificado.pontos
 
         progressoes[qualificacao]['pontos'] += pontos
 
-        # Define a progressão com base nos pontos acumulados
-        if progressoes[qualificacao]['pontos'] >= 30:
-            progressoes[qualificacao]['progressao'] = 'Concluído'
-        elif progressoes[qualificacao]['pontos'] >= 15:
-            progressoes[qualificacao]['progressao'] = 'Em progresso'
-        else:
-            progressoes[qualificacao]['progressao'] = 'Não iniciado'
-
     # Renderiza o template com a lista de usuários e progressoes
     return render_template('progressoes.html', progressoes=progressoes, usuarios=usuarios, usuario_selecionado=usuario_id)
 
-
-    # Renderiza o template com a lista de usuários e progressoes
-    return render_template('progressoes.html', progressoes=progressoes, usuarios=usuarios, usuario_selecionado=usuario_id)
 
 
 

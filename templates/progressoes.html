@@ -41,15 +41,20 @@ Progressões
                     <tr>
                         <td>{{ qualificacao }}</td>
                         <td>
-                            <input type="text" class="form-control" value="{{ dados.pontos }}" readonly>
+                            <!-- Campo "Pontos" preenchível, apenas números permitidos -->
+                            <input type="text" class="form-control" name="pontos_{{ loop.index }}" value="" inputmode="numeric" pattern="[0-9]*" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
                         </td>
                         <td>
-                            <input type="text" class="form-control" value="{{ dados.progressao }}" readonly>
+                            <!-- Campo "Progressão" preenchível, apenas números permitidos -->
+                            <input type="text" class="form-control" name="progressao_{{ loop.index }}" value="" inputmode="numeric" pattern="[0-9]*" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
                         </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
+
+            <!-- Botão para submeter o formulário se necessário -->
+            <button type="submit" class="btn btn-primary">Salvar Alterações</button>
         </form>
     </div>
 </div>
