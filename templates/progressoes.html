@@ -8,11 +8,20 @@ Progressões
 <div class="container content">
     <div class="rectangle-container">
         <h1>Progressões</h1>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div id="error-messages" class="alert alert-danger">
+                    {% for category, message in messages %}
+                        <p>{{ message }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
         <form method="post">
             <!-- Campo para selecionar o usuário -->
             <div class="form-group">
                 <label for="usuario">Nome do Usuário</label>
-                <select id="usuario" name="usuario" class="form-control" onchange="updateMatricula()">
+                <select id="usuario" name="usuario" class="form-control" onchange="this.form.submit()">
                     <option value="" {% if not usuario_selecionado %}selected{% endif %}>Selecione</option>
                     {% for usuario in usuarios %}
                         <option value="{{ usuario.id }}" data-matricula="{{ usuario.matricula }}" {% if usuario.id == usuario_selecionado %}selected{% endif %}>
@@ -41,12 +50,26 @@ Progressões
                     <tr>
                         <td>{{ qualificacao }}</td>
                         <td>
-                            <!-- Campo "Pontos" preenchível, apenas números permitidos -->
-                            <input type="text" class="form-control" name="pontos_{{ loop.index }}" value="" inputmode="numeric" pattern="[0-9]*" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+                            <!-- Campo "Pontos" preenchido com os pontos armazenados -->
+                            <input type="text" class="form-control" 
+                                   name="pontos_{{ loop.index }}" 
+                                   value="{{ dados.pontos }}" 
+                                   inputmode="numeric" 
+                                   pattern="[0-9]*">
                         </td>
                         <td>
-                            <!-- Campo "Progressão" preenchível, apenas números permitidos -->
-                            <input type="text" class="form-control" name="progressao_{{ loop.index }}" value="" inputmode="numeric" pattern="[0-9]*" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+                            <!-- Campo "Progressão" preenchível com validação de erro -->
+                            <input type="text" class="form-control {% if errors['progressao_' ~ loop.index] %}is-invalid{% endif %}" 
+                                   name="progressao_{{ loop.index }}" 
+                                   value="{{ dados.progressao }}" 
+                                   inputmode="numeric" 
+                                   pattern="[0-9]*" 
+                                   oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+                            {% if errors['progressao_' ~ loop.index] %}
+                                <div class="invalid-feedback">
+                                    {{ errors['progressao_' ~ loop.index] }}
+                                </div>
+                            {% endif %}
                         </td>
                     </tr>
                     {% endfor %}
@@ -67,24 +90,26 @@ Progressões
 
 <script>
 function updateMatricula() {
-    // Obtém o elemento selecionado no dropdown
     const usuarioSelect = document.getElementById('usuario');
     const selectedOption = usuarioSelect.options[usuarioSelect.selectedIndex];
-    
-    // Obtém a matrícula do usuário selecionado a partir do atributo data-matricula
     const matricula = selectedOption.getAttribute('data-matricula');
-    
-    // Referência ao grupo do campo de matrícula
     const matriculaGroup = document.getElementById('matricula-group');
 
-    // Verifica se uma matrícula está disponível e exibe o campo, caso contrário, esconde-o
     if (matricula) {
         document.getElementById('matricula').value = matricula;
-        matriculaGroup.style.display = 'block'; // Mostra o campo de matrícula
+        matriculaGroup.style.display = 'block';
     } else {
-        matriculaGroup.style.display = 'none'; // Esconde o campo de matrícula
-        document.getElementById('matricula').value = ''; // Limpa o campo de matrícula
+        matriculaGroup.style.display = 'none';
+        document.getElementById('matricula').value = '';
     }
 }
+
+// Função para ocultar as mensagens de erro após 5 segundos
+window.setTimeout(function() {
+    const errorMessages = document.getElementById('error-messages');
+    if (errorMessages) {
+        errorMessages.style.display = 'none';
+    }
+}, 5000);
 </script>
 {% endblock %}

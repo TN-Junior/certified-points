@@ -582,17 +582,63 @@ def progressoes():
     # Consulta os certificados aprovados do usuário selecionado
     certificados_aprovados = Certificado.query.filter_by(usuario_id=usuario_id, aprovado=True).all()
 
-    # Agrupar os pontos por qualificação
-    progressoes = {qual: {'pontos': 0, 'progressao': ''} for qual in QUALIFICACOES}  # Deixe progressão em branco
+    # Inicializa o dicionário para armazenar todas as qualificações com pontos iniciais zero
+    progressoes = {qual: {'pontos': 0, 'progressao': '', 'erro': False} for qual in QUALIFICACOES}
+    
+    # Atualiza o dicionário com os pontos das qualificações que o usuário possui
     for certificado in certificados_aprovados:
         qualificacao = certificado.qualificacao
         pontos = certificado.pontos
 
-        progressoes[qualificacao]['pontos'] += pontos
+        if qualificacao in progressoes:
+            progressoes[qualificacao]['pontos'] += pontos
+
+    errors = {}  # Dicionário para armazenar os erros de validação
+
+    # Lógica para processar o formulário quando submetido
+    if request.method == 'POST':
+        for i, (qualificacao, dados) in enumerate(progressoes.items()):
+            pontos_key = f'pontos_{i + 1}'  # Nome do campo conforme o índice
+            progressao_key = f'progressao_{i + 1}'
+
+            # Obtém os valores dos campos do formulário
+            pontos = request.form.get(pontos_key, 0)
+            progressao = request.form.get(progressao_key, '')
+
+            # Converte pontos para inteiro, garantindo que seja um número
+            try:
+                pontos = int(pontos)
+            except ValueError:
+                pontos = 0
+
+            # Definindo os limites de pontuação conforme a qualificação
+            max_points = None
+            if 'Instrutoria ou Coordenação de cursos promovidos pelo município' in qualificacao:
+                max_points = 10
+            elif 'Participação em grupos, equipes, comissões' in qualificacao:
+                max_points = 10
+            elif 'Exercício de cargo comissionado e funções gratificadas' in qualificacao:
+                max_points = 15
+
+            # Valida se a progressão está dentro do limite permitido
+            try:
+                progressao_valor = int(progressao)
+            except ValueError:
+                progressao_valor = 0
+
+            if max_points is not None and progressao_valor > max_points:
+                progressoes[qualificacao]['erro'] = True
+                errors[progressao_key] = f"Não pode ultrapassar o máximo de {max_points} pontos permitidos."
+            else:
+                progressoes[qualificacao]['pontos'] = pontos
+                progressoes[qualificacao]['progressao'] = progressao
+
+        # Se houver erros, não redirecione e exiba as mensagens de erro
+        if errors:
+            flash("Erro: Existem campos de progressão com pontuação acima do permitido.", "danger")
 
     # Renderiza o template com a lista de usuários e progressoes
-    return render_template('progressoes.html', progressoes=progressoes, usuarios=usuarios, usuario_selecionado=usuario_id)
-
+    return render_template('progressoes.html', progressoes=progressoes, usuarios=usuarios, usuario_selecionado=usuario_id, errors=errors)
 
 
 
