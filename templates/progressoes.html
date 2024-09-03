@@ -21,7 +21,7 @@ Progressões
             <!-- Campo para selecionar o usuário -->
             <div class="form-group">
                 <label for="usuario">Nome do Usuário</label>
-                <select id="usuario" name="usuario" class="form-control" onchange="this.form.submit()">
+                <select id="usuario" name="usuario" class="form-control" onchange="updateMatricula(); this.form.submit()">
                     <option value="" {% if not usuario_selecionado %}selected{% endif %}>Selecione</option>
                     {% for usuario in usuarios %}
                         <option value="{{ usuario.id }}" data-matricula="{{ usuario.matricula }}" {% if usuario.id == usuario_selecionado %}selected{% endif %}>
@@ -50,7 +50,6 @@ Progressões
                     <tr>
                         <td>{{ qualificacao }}</td>
                         <td>
-                            <!-- Campo "Pontos" preenchido com os pontos armazenados -->
                             <input type="text" class="form-control" 
                                    name="pontos_{{ loop.index }}" 
                                    value="{{ dados.pontos }}" 
@@ -58,7 +57,6 @@ Progressões
                                    pattern="[0-9]*">
                         </td>
                         <td>
-                            <!-- Campo "Progressão" preenchível com validação de erro -->
                             <input type="text" class="form-control {% if errors['progressao_' ~ loop.index] %}is-invalid{% endif %}" 
                                    name="progressao_{{ loop.index }}" 
                                    value="{{ dados.progressao }}" 
@@ -76,7 +74,6 @@ Progressões
                 </tbody>
             </table>
 
-            <!-- Botão para submeter o formulário se necessário -->
             <button type="submit" class="btn btn-primary">Salvar Alterações</button>
         </form>
     </div>
@@ -103,6 +100,9 @@ function updateMatricula() {
         document.getElementById('matricula').value = '';
     }
 }
+
+// Chama updateMatricula ao carregar a página para exibir a matrícula se já houver um usuário selecionado
+window.onload = updateMatricula;
 
 // Função para ocultar as mensagens de erro após 5 segundos
 window.setTimeout(function() {
