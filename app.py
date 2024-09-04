@@ -584,77 +584,69 @@ def api_get_mensagens():
 @app.route('/progressoes', methods=['GET', 'POST'])
 @login_required
 def progressoes():
-    # Busca todos os usuários cadastrados no sistema que não são administradores
     usuarios = Usuario.query.filter(Usuario.role != 'admin').all()
-
-    # Obtém o ID do usuário selecionado no formulário, se houver
     usuario_id = request.form.get('usuario')
 
-    # Caso nenhum usuário tenha sido selecionado, usa o usuário logado como padrão
     if usuario_id:
-        usuario_id = int(usuario_id)  # Converte o ID do usuário selecionado para inteiro
+        usuario_id = int(usuario_id)
     else:
         usuario_id = session.get('usuario_logado')
 
-    # Consulta os certificados aprovados do usuário selecionado
+    # Inicializa as qualificações com zero pontos
+    progressoes = {qual: {'pontos': 0, 'progressao': '', 'erro': False} for qual in QUALIFICACOES}
+
+    # Busca os certificados aprovados do usuário selecionado e soma os pontos por qualificação
     certificados_aprovados = Certificado.query.filter_by(usuario_id=usuario_id, aprovado=True).all()
 
-    # Inicializa o dicionário para armazenar todas as qualificações com pontos iniciais zero
-    progressoes = {qual: {'pontos': 0, 'progressao': '', 'erro': False} for qual in QUALIFICACOES}
-    
-    # Atualiza o dicionário com os pontos das qualificações que o usuário possui
+    # Dicionário para armazenar pontos agrupados por qualificação
+    pontos_por_qualificacao = {}
+
+    # Agrupa os pontos dos certificados por qualificação
     for certificado in certificados_aprovados:
         qualificacao = certificado.qualificacao
         pontos = certificado.pontos
 
+        if qualificacao in pontos_por_qualificacao:
+            pontos_por_qualificacao[qualificacao] += pontos
+        else:
+            pontos_por_qualificacao[qualificacao] = pontos
+
+    # Atualiza o dicionário de progressoes com os pontos agrupados por qualificação
+    for qualificacao, pontos in pontos_por_qualificacao.items():
         if qualificacao in progressoes:
-            progressoes[qualificacao]['pontos'] += pontos
+            progressoes[qualificacao]['pontos'] = pontos
 
-    errors = {}  # Dicionário para armazenar os erros de validação
+    errors = {}
 
-    # Lógica para processar o formulário quando submetido
+    # Processa o formulário para salvar alterações de progressão
     if request.method == 'POST':
         for i, (qualificacao, dados) in enumerate(progressoes.items()):
-            pontos_key = f'pontos_{i + 1}'  # Nome do campo conforme o índice
+            pontos_key = f'pontos_{i + 1}'
             progressao_key = f'progressao_{i + 1}'
+            progressao = request.form.get(progressao_key, dados['progressao'])
 
-            # Obtém os valores dos campos do formulário
-            pontos = request.form.get(pontos_key, 0)
-            progressao = request.form.get(progressao_key, '')
-
-            # Converte pontos para inteiro, garantindo que seja um número
-            try:
-                pontos = int(pontos)
-            except ValueError:
-                pontos = 0
-
-            # Definindo os limites de pontuação conforme a qualificação
-            max_points = None
-            if 'Instrutoria ou Coordenação de cursos promovidos pelo Município do Recife' in qualificacao:
-                max_points = 10
-            elif 'Participação em grupos, equipes, comissões e projetos especiais, no âmbito do Município do Recife, formalizados por ato oficial' in qualificacao:
-                max_points = 10
-            elif 'Exercício de cargos comissionados e funções gratificadas, ocupados, exclusivamente, no âmbito do Poder Executivo Municipal' in qualificacao:
-                max_points = 15
-
-            # Valida se a progressão está dentro do limite permitido
             try:
                 progressao_valor = int(progressao)
             except ValueError:
                 progressao_valor = 0
 
+            max_points = None
+            if 'Instrutoria ou Coordenação de cursos promovidos pelo Município do Recife' in qualificacao:
+                max_points = 10
+            elif 'Participação em grupos, equipes, comissões e projetos especiais' in qualificacao:
+                max_points = 10
+            elif 'Exercício de cargos comissionados e funções gratificadas' in qualificacao:
+                max_points = 15
+
             if max_points is not None and progressao_valor > max_points:
                 progressoes[qualificacao]['erro'] = True
                 errors[progressao_key] = f"Não pode ultrapassar o máximo de {max_points} pontos permitidos."
             else:
-                progressoes[qualificacao]['pontos'] = pontos
                 progressoes[qualificacao]['progressao'] = progressao
 
-        # Se houver erros, não redirecione e exiba as mensagens de erro
         if errors:
             flash("Erro: Existem campos de progressão com pontuação acima do permitido.", "danger")
 
-    # Renderiza o template com a lista de usuários e progressoes
     return render_template('progressoes.html', progressoes=progressoes, usuarios=usuarios, usuario_selecionado=usuario_id, errors=errors)
 
 

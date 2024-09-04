@@ -50,11 +50,11 @@ Progressões
                     <tr>
                         <td>{{ qualificacao }}</td>
                         <td>
+                            <!-- Campo de Pontos agora é somente leitura para exibir os pontos do usuário -->
                             <input type="text" class="form-control" 
                                    name="pontos_{{ loop.index }}" 
                                    value="{{ dados.pontos }}" 
-                                   inputmode="numeric" 
-                                   pattern="[0-9]*">
+                                   readonly>
                         </td>
                         <td>
                             <input type="text" class="form-control {% if errors['progressao_' ~ loop.index] %}is-invalid{% endif %}" 
