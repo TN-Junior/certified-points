@@ -167,7 +167,7 @@ def parse_date(date_string):
 
 def calcular_pontos(certificado_data):
     qualificacao = certificado_data['qualificacao']
-    horas = certificado_data['horas']
+    horas = certificado_data.get('horas', 0)  # Define 0 se horas for None
     tempo = certificado_data.get('tempo', 0)
     pontos = 0
     horas_excedentes = 0
@@ -176,36 +176,39 @@ def calcular_pontos(certificado_data):
         pontos = (horas // 20) * 2
         horas_excedentes = horas % 20
     elif qualificacao == 'Cursos de atualização realizados, promovidos, articulados ou admitidos pelo Município do Recife.':
-        if horas >= 40:
+        if horas is not None and horas >= 40:
             pontos = 5
             horas_excedentes = horas - 40
     elif qualificacao == 'Cursos de aperfeiçoamento realizados, promovidos, articulados ou admitidos pelo Município do Recife.':
-        if horas >= 180:
+        if horas is not None and horas >= 180:
             pontos = 10
             horas_excedentes = horas - 180
     elif qualificacao == 'Cursos de graduação e especialização realizados em instituição pública ou privada, reconhecida pelo MEC.':
-        if horas >= 360:
+        if horas is not None and horas >= 360:
             pontos = 20
             horas_excedentes = horas - 360
     elif qualificacao == 'Mestrado, doutorado e pós-doutorado realizados em instituição pública ou privada, reconhecida pelo MEC.':
         pontos = 30
         horas_excedentes = 0
     elif qualificacao == 'Instrutoria ou Coordenação de cursos promovidos pelo Município do Recife.':
-        pontos = (horas // 8) * 2
-        if pontos > 10:
-            pontos = 10
-        horas_excedentes = horas % 8
+        if horas is not None:
+            pontos = (horas // 8) * 2
+            if pontos > 10:
+                pontos = 10
+            horas_excedentes = horas % 8
     elif qualificacao == 'Participação em grupos, equipes, comissões e projetos especiais, no âmbito do Município do Recife, formalizados por ato oficial.':
         pontos = 5
         if pontos > 10:
             pontos = 10
     elif qualificacao == 'Exercício de cargos comissionados e funções gratificadas, ocupados, exclusivamente, no âmbito do Poder Executivo Municipal.':
-        pontos = (tempo // 6) * 10
-        if pontos > 15:
-            pontos = 15
+        if tempo is not None:
+            pontos = (tempo // 6) * 10
+            if pontos > 15:
+                pontos = 15
         horas_excedentes = 0
 
     return pontos, horas_excedentes
+
 
 def hash_password(password):
     salt = os.urandom(16)
@@ -462,15 +465,15 @@ def cursos():
             cursos_excedentes[certificado.qualificacao]['horas_excedentes'] %= 20
 
         elif certificado.qualificacao == 'Cursos de atualização realizados, promovidos, articulados ou admitidos pelo Município do Recife.':
-            if certificado.carga_horaria >= 40:
+            if certificado.carga_horaria is not None and certificado.carga_horaria >= 40:
                 cursos_excedentes[certificado.qualificacao]['pontos'] += 5
 
         elif certificado.qualificacao == 'Cursos de aperfeiçoamento realizados, promovidos, articulados ou admitidos pelo Município do Recife.':
-            if certificado.carga_horaria >= 180:
+            if certificado.carga_horaria is not None and certificado.carga_horaria >= 180:
                 cursos_excedentes[certificado.qualificacao]['pontos'] += 10
 
         elif certificado.qualificacao == 'Cursos de graduação e especialização realizados em instituição pública ou privada, reconhecida pelo MEC.':
-            if certificado.carga_horaria >= 360:
+            if certificado.carga_horaria is not None and certificado.carga_horaria >= 360:
                 cursos_excedentes[certificado.qualificacao]['pontos'] += 20
 
         elif certificado.qualificacao == 'Mestrado, doutorado e pós-doutorado realizados em instituição pública ou privada, reconhecida pelo MEC.':
@@ -492,7 +495,7 @@ def cursos():
 
         elif certificado.qualificacao == 'Exercício de cargos comissionados e funções gratificadas, ocupados, exclusivamente, no âmbito do Poder Executivo Municipal.':
             max_pontos = 15
-            pontos_cargos = (certificado.tempo // 6) * 10
+            pontos_cargos = (certificado.tempo // 6) * 10 if certificado.tempo is not None else 0
             if cursos_excedentes[certificado.qualificacao]['pontos'] + pontos_cargos > max_pontos:
                 pontos_cargos = max_pontos - cursos_excedentes[certificado.qualificacao]['pontos']
             cursos_excedentes[certificado.qualificacao]['pontos'] += pontos_cargos
@@ -509,20 +512,34 @@ def cursos():
 
 
 
+
 @app.route('/aprovar/<int:certificado_id>', methods=['POST'])
 @requires_admin
 def aprovar_certificado(certificado_id):
     certificado = db.session.get(Certificado, certificado_id)
     if certificado:
-        certificado.aprovado = True
-        usuario = db.session.get(Usuario, certificado.usuario_id)
-        if usuario:
-            usuario.pontuacao += certificado.pontos
-        db.session.commit()
-        flash('Certificado aprovado e pontos adicionados ao usuário!')
+        # Verificar se o certificado já foi aprovado anteriormente
+        if not certificado.aprovado:
+            certificado.aprovado = True
+            usuario = db.session.get(Usuario, certificado.usuario_id)
+            if usuario:
+                # Somar os pontos apenas se o certificado não tiver sido aprovado antes
+                usuario.pontuacao = (usuario.pontuacao or 0) + (certificado.pontos or 0)
+                db.session.add(usuario)  # Certifique-se de adicionar o usuário para que a mudança seja salva
+            try:
+                db.session.commit()
+                flash('Certificado aprovado e pontos adicionados ao usuário!')
+            except Exception as e:
+                db.session.rollback()
+                flash(f'Ocorreu um erro ao tentar aprovar o certificado: {str(e)}')
+        else:
+            flash('Este certificado já foi aprovado anteriormente e os pontos já foram adicionados.')
     else:
         flash('Certificado não encontrado ou você não tem permissão para aprová-lo.')
     return redirect(url_for('certificados'))
+
+
+
 
 @app.route('/recusar_certificado/<int:certificado_id>', methods=['POST'])
 @requires_admin
