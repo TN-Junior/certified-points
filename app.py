@@ -630,11 +630,11 @@ def progressoes():
 
             # Definindo os limites de pontuação conforme a qualificação
             max_points = None
-            if 'Instrutoria ou Coordenação de cursos promovidos pelo município' in qualificacao:
+            if 'Instrutoria ou Coordenação de cursos promovidos pelo Município do Recife' in qualificacao:
                 max_points = 10
-            elif 'Participação em grupos, equipes, comissões' in qualificacao:
+            elif 'Participação em grupos, equipes, comissões e projetos especiais, no âmbito do Município do Recife, formalizados por ato oficial' in qualificacao:
                 max_points = 10
-            elif 'Exercício de cargo comissionado e funções gratificadas' in qualificacao:
+            elif 'Exercício de cargos comissionados e funções gratificadas, ocupados, exclusivamente, no âmbito do Poder Executivo Municipal' in qualificacao:
                 max_points = 15
 
             # Valida se a progressão está dentro do limite permitido
@@ -656,6 +656,7 @@ def progressoes():
 
     # Renderiza o template com a lista de usuários e progressoes
     return render_template('progressoes.html', progressoes=progressoes, usuarios=usuarios, usuario_selecionado=usuario_id, errors=errors)
+
 
 
 
