@@ -477,7 +477,9 @@ def cursos():
                 cursos_excedentes[certificado.qualificacao]['pontos'] += 20
 
         elif certificado.qualificacao == 'Mestrado, doutorado e pós-doutorado realizados em instituição pública ou privada, reconhecida pelo MEC.':
-            cursos_excedentes[certificado.qualificacao]['pontos'] += 30
+    # Certifique-se de que os pontos são somados uma única vez
+            if cursos_excedentes[certificado.qualificacao]['pontos'] == 0:
+                cursos_excedentes[certificado.qualificacao]['pontos'] += 30
 
         elif certificado.qualificacao == 'Instrutoria ou Coordenação de cursos promovidos pelo Município do Recife.':
             max_pontos = 10
