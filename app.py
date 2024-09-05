@@ -80,6 +80,7 @@ class Certificado(db.Model):
     curso = db.relationship('Curso', backref=db.backref('certificados', lazy=True))
     usuario_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'))
     usuario = db.relationship('Usuario', backref=db.backref('certificados', lazy=True))
+    progressao = db.Column(db.Integer, default=0)
 
 class Usuario(db.Model):
     __tablename__ = 'usuarios'
@@ -594,62 +595,82 @@ def progressoes():
     else:
         usuario_id = session.get('usuario_logado')
 
-    # Inicializa as qualificações com zero pontos
-    progressoes = {qual: {'pontos': 0, 'progressao': '', 'erro': False} for qual in QUALIFICACOES}
+    progressoes = {qual: {'pontos': 0, 'progressao': 0, 'erro': False} for qual in QUALIFICACOES}
 
-    # Busca os certificados aprovados do usuário selecionado e soma os pontos por qualificação
     certificados_aprovados = Certificado.query.filter_by(usuario_id=usuario_id, aprovado=True).all()
-
-    # Dicionário para armazenar pontos agrupados por qualificação
     pontos_por_qualificacao = {}
 
-    # Agrupa os pontos dos certificados por qualificação
     for certificado in certificados_aprovados:
         qualificacao = certificado.qualificacao
-        pontos = certificado.pontos
-
+        pontos_disponiveis = certificado.pontos - certificado.progressao
         if qualificacao in pontos_por_qualificacao:
-            pontos_por_qualificacao[qualificacao] += pontos
+            pontos_por_qualificacao[qualificacao]['pontos'] += pontos_disponiveis
+            pontos_por_qualificacao[qualificacao]['progressao'] += certificado.progressao
         else:
-            pontos_por_qualificacao[qualificacao] = pontos
+            pontos_por_qualificacao[qualificacao] = {'pontos': pontos_disponiveis, 'progressao': certificado.progressao}
 
-    # Atualiza o dicionário de progressoes com os pontos agrupados por qualificação
-    for qualificacao, pontos in pontos_por_qualificacao.items():
+    for qualificacao, dados in pontos_por_qualificacao.items():
         if qualificacao in progressoes:
-            progressoes[qualificacao]['pontos'] = pontos
+            progressoes[qualificacao]['pontos'] = dados['pontos']
+            progressoes[qualificacao]['progressao'] = dados['progressao']
 
     errors = {}
 
-    # Processa o formulário para salvar alterações de progressão
+    # Definir os limites para as qualificações específicas
+    limites_por_qualificacao = {
+        'Instrutoria ou Coordenação de cursos promovidos pelo Município do Recife.': 10,
+        'Participação em grupos, equipes, comissões e projetos especiais, no âmbito do Município do Recife, formalizados por ato oficial.': 10,
+        'Exercício de cargos comissionados e funções gratificadas, ocupados, exclusivamente, no âmbito do Poder Executivo Municipal.': 15
+    }
+
     if request.method == 'POST':
         for i, (qualificacao, dados) in enumerate(progressoes.items()):
-            pontos_key = f'pontos_{i + 1}'
             progressao_key = f'progressao_{i + 1}'
-            progressao = request.form.get(progressao_key, dados['progressao'])
+            progressao_valor = request.form.get(progressao_key, '0')
 
             try:
-                progressao_valor = int(progressao)
+                progressao_valor = int(progressao_valor)
             except ValueError:
                 progressao_valor = 0
 
-            max_points = None
-            if 'Instrutoria ou Coordenação de cursos promovidos pelo Município do Recife' in qualificacao:
-                max_points = 10
-            elif 'Participação em grupos, equipes, comissões e projetos especiais' in qualificacao:
-                max_points = 10
-            elif 'Exercício de cargos comissionados e funções gratificadas' in qualificacao:
-                max_points = 15
-
-            if max_points is not None and progressao_valor > max_points:
+            # Verificar se o valor da progressão excede os pontos disponíveis
+            if progressao_valor > dados['pontos']:
                 progressoes[qualificacao]['erro'] = True
-                errors[progressao_key] = f"Não pode ultrapassar o máximo de {max_points} pontos permitidos."
+                errors[progressao_key] = "O valor inserido excede o saldo de pontos disponíveis."
+            # Verificar se a progressão excede o limite específico para as qualificações com limite
+            elif qualificacao in limites_por_qualificacao:
+                total_progressao = dados['progressao'] + progressao_valor
+                if total_progressao > limites_por_qualificacao[qualificacao]:
+                    progressoes[qualificacao]['erro'] = True
+                    errors[progressao_key] = f"O valor inserido excede o limite máximo de {limites_por_qualificacao[qualificacao]} pontos para esta qualificação."
             else:
-                progressoes[qualificacao]['progressao'] = progressao
+                # Se a progressão for válida, atualize os pontos
+                if progressao_valor <= dados['pontos']:
+                    progressoes[qualificacao]['progressao'] += progressao_valor
+                    dados['pontos'] -= progressao_valor
 
-        if errors:
-            flash("Erro: Existem campos de progressão com pontuação acima do permitido.", "danger")
+                    # Atualiza os pontos de progressão nos certificados
+                    for certificado in certificados_aprovados:
+                        if certificado.qualificacao == qualificacao and progressao_valor > 0:
+                            restante = min(progressao_valor, certificado.pontos - certificado.progressao)
+                            certificado.progressao += restante
+                            progressao_valor -= restante
+                            db.session.add(certificado)
+                else:
+                    progressoes[qualificacao]['erro'] = True
+                    errors[progressao_key] = "Não é possível inserir mais pontos do que os disponíveis."
+
+        if not errors:
+            db.session.commit()
+            flash("Pontos de progressão atualizados com sucesso!", "success")
+        else:
+            flash("Erro ao atualizar os pontos de progressão.", "danger")
 
     return render_template('progressoes.html', progressoes=progressoes, usuarios=usuarios, usuario_selecionado=usuario_id, errors=errors)
+
+
+
+
 
 
 
