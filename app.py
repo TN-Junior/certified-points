@@ -600,19 +600,37 @@ def progressoes():
     certificados_aprovados = Certificado.query.filter_by(usuario_id=usuario_id, aprovado=True).all()
     pontos_por_qualificacao = {}
 
+    # Capturando os pontos e horas excedentes dos cursos aprovados
     for certificado in certificados_aprovados:
         qualificacao = certificado.qualificacao
         pontos_disponiveis = certificado.pontos - certificado.progressao
+        horas_excedentes = certificado.horas_excedentes
+
         if qualificacao in pontos_por_qualificacao:
             pontos_por_qualificacao[qualificacao]['pontos'] += pontos_disponiveis
             pontos_por_qualificacao[qualificacao]['progressao'] += certificado.progressao
+            pontos_por_qualificacao[qualificacao]['horas_excedentes'] += horas_excedentes
         else:
-            pontos_por_qualificacao[qualificacao] = {'pontos': pontos_disponiveis, 'progressao': certificado.progressao}
+            pontos_por_qualificacao[qualificacao] = {'pontos': pontos_disponiveis, 'progressao': certificado.progressao, 'horas_excedentes': horas_excedentes}
 
+    # Adicionando os pontos das qualificações ao contexto de progressoes
     for qualificacao, dados in pontos_por_qualificacao.items():
         if qualificacao in progressoes:
             progressoes[qualificacao]['pontos'] = dados['pontos']
             progressoes[qualificacao]['progressao'] = dados['progressao']
+
+            # Convertendo horas excedentes em pontos e somando
+            if qualificacao == 'Cursos, seminários, congressos e oficinas realizados, promovidos, articulados ou admitidos pelo Município do Recife.':
+                pontos_excedentes = (dados['horas_excedentes'] // 20) * 2
+                progressoes[qualificacao]['pontos'] += pontos_excedentes
+                progressoes[qualificacao]['horas_excedentes'] = dados['horas_excedentes'] % 20
+
+            elif qualificacao == 'Instrutoria ou Coordenação de cursos promovidos pelo Município do Recife.':
+                pontos_excedentes = (dados['horas_excedentes'] // 8) * 2
+                if progressoes[qualificacao]['pontos'] + pontos_excedentes > 10:
+                    pontos_excedentes = 10 - progressoes[qualificacao]['pontos']
+                progressoes[qualificacao]['pontos'] += pontos_excedentes
+                progressoes[qualificacao]['horas_excedentes'] = dados['horas_excedentes'] % 8
 
     errors = {}
 
@@ -667,12 +685,6 @@ def progressoes():
             flash("Erro ao atualizar os pontos de progressão.", "danger")
 
     return render_template('progressoes.html', progressoes=progressoes, usuarios=usuarios, usuario_selecionado=usuario_id, errors=errors)
-
-
-
-
-
-
 
 
 
