@@ -561,12 +561,15 @@ def progressoes():
     else:
         usuario_id = session.get('usuario_logado')
 
-    progressoes = calcular_pontos_cursos_aprovados(usuario_id)
+    # Calcula os pontos e horas excedentes dos cursos aprovados do usuário
+    certificados_aprovados = Certificado.query.filter_by(usuario_id=usuario_id, aprovado=True).all()
+    progressoes = {qualificacao: {'pontos': 0, 'progressao': 0, 'horas_excedentes': 0} for qualificacao in QUALIFICACOES}
 
-    # Inicializa a chave 'progressao' e 'erro' para cada qualificação se não existir
-    for qualificacao, dados in progressoes.items():
-        dados.setdefault('progressao', 0)
-        dados.setdefault('erro', False)
+    # Preenche os pontos e progressões atuais das qualificações
+    for certificado in certificados_aprovados:
+        progressoes[certificado.qualificacao]['pontos'] += certificado.pontos
+        progressoes[certificado.qualificacao]['progressao'] += certificado.progressao
+        progressoes[certificado.qualificacao]['horas_excedentes'] += certificado.horas_excedentes
 
     errors = {}
 
@@ -577,43 +580,63 @@ def progressoes():
     }
 
     if request.method == 'POST':
+        # Itera sobre cada qualificação para aplicar progressões
         for i, (qualificacao, dados) in enumerate(progressoes.items()):
             progressao_key = f'progressao_{i + 1}'
-            progressao_valor = request.form.get(progressao_key, '0')
+            adicionar_key = f'adicionar_{i + 1}'
+            botao_adicionar_key = f'botao_adicionar_{i + 1}'
 
-            try:
-                progressao_valor = int(progressao_valor)
-            except ValueError:
-                progressao_valor = 0
+            # Captura a quantidade de pontos que o usuário quer adicionar
+            if botao_adicionar_key in request.form:
+                progressao_valor = request.form.get(adicionar_key, '0')
 
-            if progressao_valor > dados['pontos']:
-                progressoes[qualificacao]['erro'] = True
-                errors[progressao_key] = "O valor inserido excede o saldo de pontos disponíveis."
-            elif qualificacao in limites_por_qualificacao:
-                total_progressao = dados['progressao'] + progressao_valor
-                if total_progressao > limites_por_qualificacao[qualificacao]:
+                try:
+                    progressao_valor = int(progressao_valor)
+                except ValueError:
+                    progressao_valor = 0
+
+                if progressao_valor > dados['pontos']:
                     progressoes[qualificacao]['erro'] = True
-                    errors[progressao_key] = f"O valor inserido excede o limite máximo de {limites_por_qualificacao[qualificacao]} pontos para esta qualificação."
-            else:
-                if progressao_valor <= dados['pontos']:
-                    progressoes[qualificacao]['progressao'] += progressao_valor
-                    dados['pontos'] -= progressao_valor
+                    errors[progressao_key] = "O valor inserido excede o saldo de pontos disponíveis."
+                elif qualificacao in limites_por_qualificacao:
+                    total_progressao = dados['progressao'] + progressao_valor
+                    if total_progressao > limites_por_qualificacao[qualificacao]:
+                        progressoes[qualificacao]['erro'] = True
+                        errors[progressao_key] = f"O valor inserido excede o limite máximo de {limites_por_qualificacao[qualificacao]} pontos para esta qualificação."
+                else:
+                    # Aplica a quantidade correta de pontos conforme especificado pelo usuário
+                    if progressao_valor <= dados['pontos']:
+                        certificados_aprovados_qualificacao = Certificado.query.filter_by(
+                            usuario_id=usuario_id,
+                            aprovado=True,
+                            qualificacao=qualificacao
+                        ).all()
 
-                    certificados_aprovados = Certificado.query.filter_by(usuario_id=usuario_id, aprovado=True).all()
-                    for certificado in certificados_aprovados:
-                        if certificado.qualificacao == qualificacao and progressao_valor > 0:
-                            restante = min(progressao_valor, certificado.pontos - certificado.progressao)
-                            certificado.progressao += restante
-                            progressao_valor -= restante
-                            db.session.add(certificado)
+                        # Distribui o valor inserido entre os certificados e atualiza a progressão
+                        for certificado in certificados_aprovados_qualificacao:
+                            if progressao_valor > 0 and certificado.pontos > 0:
+                                restante = min(progressao_valor, certificado.pontos)
+                                certificado.progressao += restante
+                                certificado.pontos -= restante
+                                progressoes[qualificacao]['pontos'] -= restante
+                                progressoes[qualificacao]['progressao'] += restante
+                                progressao_valor -= restante
+                                db.session.add(certificado)  # Atualiza o certificado no banco de dados
 
-        if not errors:
-            db.session.commit()
-            flash("Pontos de progressão atualizados com sucesso!", "success")
-        else:
+                        # Salva imediatamente após clicar em "Adicionar"
+                        db.session.commit()
+                        flash("Pontos de progressão atualizados com sucesso!", "success")
+
+        # Atualiza a progressão com os pontos adicionados ao clicar em "Salvar Alterações"
+        if 'Salvar Alterações' in request.form and not errors:
+            db.session.commit()  # Salva todas as alterações na base de dados
+            flash("Alterações salvas com sucesso!", "success")
+        elif errors:
             flash("Erro ao atualizar os pontos de progressão.", "danger")
 
     return render_template('progressoes.html', progressoes=progressoes, usuarios=usuarios, usuario_selecionado=usuario_id, errors=errors)
+
+
 
 
 if __name__ == '__main__':

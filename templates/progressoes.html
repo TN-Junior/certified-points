@@ -43,6 +43,7 @@ Progressões
                         <th>Qualificação</th>
                         <th>Pontos</th>
                         <th>Progressão</th>
+                        <th>Ação</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -62,12 +63,24 @@ Progressões
                                    value="{{ dados.progressao }}" 
                                    inputmode="numeric" 
                                    pattern="[0-9]*" 
-                                   oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+                                   oninput="this.value = this.value.replace(/[^0-9]/g, '')" 
+                                   readonly>
                             {% if errors['progressao_' ~ loop.index] %}
                                 <div class="invalid-feedback">
                                     {{ errors['progressao_' ~ loop.index] }}
                                 </div>
                             {% endif %}
+                        </td>
+                        <td>
+                            <!-- Campo para adicionar a quantidade de pontos a ser usada -->
+                            <input type="number" class="form-control d-inline-block w-50" 
+                                   name="adicionar_{{ loop.index }}" 
+                                   min="0" 
+                                   max="{{ dados.pontos }}" 
+                                   placeholder="Pontos">
+                            <button type="submit" class="btn btn-primary d-inline-block" name="botao_adicionar_{{ loop.index }}" value="{{ qualificacao }}">
+                                Adicionar
+                            </button>
                         </td>
                     </tr>
                     {% endfor %}
