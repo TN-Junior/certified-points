@@ -573,6 +573,7 @@ def progressoes():
 
     errors = {}
 
+    # Definindo limites e as qualificações que possuem restrições de pontos
     limites_por_qualificacao = {
         'Instrutoria ou Coordenação de cursos promovidos pelo Município do Recife.': 10,
         'Participação em grupos, equipes, comissões e projetos especiais, no âmbito do Município do Recife, formalizados por ato oficial.': 10,
@@ -603,6 +604,29 @@ def progressoes():
                     if total_progressao > limites_por_qualificacao[qualificacao]:
                         progressoes[qualificacao]['erro'] = True
                         errors[progressao_key] = f"O valor inserido excede o limite máximo de {limites_por_qualificacao[qualificacao]} pontos para esta qualificação."
+                    else:
+                        # Aplica a quantidade correta de pontos conforme especificado pelo usuário
+                        if progressao_valor <= dados['pontos']:
+                            certificados_aprovados_qualificacao = Certificado.query.filter_by(
+                                usuario_id=usuario_id,
+                                aprovado=True,
+                                qualificacao=qualificacao
+                            ).all()
+
+                            # Distribui o valor inserido entre os certificados e atualiza a progressão
+                            for certificado in certificados_aprovados_qualificacao:
+                                if progressao_valor > 0 and certificado.pontos > 0:
+                                    restante = min(progressao_valor, certificado.pontos)
+                                    certificado.progressao += restante
+                                    certificado.pontos -= restante
+                                    progressoes[qualificacao]['pontos'] -= restante
+                                    progressoes[qualificacao]['progressao'] += restante
+                                    progressao_valor -= restante
+                                    db.session.add(certificado)  # Atualiza o certificado no banco de dados
+
+                            # Salva imediatamente após clicar em "Adicionar"
+                            db.session.commit()
+                            flash("Pontos de progressão atualizados com sucesso!", "success")
                 else:
                     # Aplica a quantidade correta de pontos conforme especificado pelo usuário
                     if progressao_valor <= dados['pontos']:
@@ -635,6 +659,7 @@ def progressoes():
             flash("Erro ao atualizar os pontos de progressão.", "danger")
 
     return render_template('progressoes.html', progressoes=progressoes, usuarios=usuarios, usuario_selecionado=usuario_id, errors=errors)
+
 
 
 
