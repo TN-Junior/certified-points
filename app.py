@@ -580,6 +580,15 @@ def progressoes():
         'Exercício de cargos comissionados e funções gratificadas, ocupados, exclusivamente, no âmbito do Poder Executivo Municipal.': 15
     }
 
+    qualificacoes_restritas = [
+        'Instrutoria ou Coordenação de cursos promovidos pelo Município do Recife.',
+        'Participação em grupos, equipes, comissões e projetos especiais, no âmbito do Município do Recife, formalizados por ato oficial.',
+        'Exercício de cargos comissionados e funções gratificadas, ocupados, exclusivamente, no âmbito do Poder Executivo Municipal.'
+    ]
+
+    # Verifica se todas as qualificações restritas têm seus pontos completamente utilizados
+    pontos_restritos_restantes = sum(progressoes[qualificacao]['pontos'] for qualificacao in qualificacoes_restritas)
+
     if request.method == 'POST':
         # Itera sobre cada qualificação para aplicar progressões
         for i, (qualificacao, dados) in enumerate(progressoes.items()):
@@ -596,6 +605,11 @@ def progressoes():
                 except ValueError:
                     progressao_valor = 0
 
+                # Impede adição de pontos para outras qualificações enquanto qualificações restritas tiverem pontos
+                if qualificacao not in qualificacoes_restritas and pontos_restritos_restantes > 0:
+                    flash("Preencha as ultimas três qualificações", "danger")
+                    continue
+
                 if progressao_valor > dados['pontos']:
                     progressoes[qualificacao]['erro'] = True
                     errors[progressao_key] = "O valor inserido excede o saldo de pontos disponíveis."
@@ -604,29 +618,6 @@ def progressoes():
                     if total_progressao > limites_por_qualificacao[qualificacao]:
                         progressoes[qualificacao]['erro'] = True
                         errors[progressao_key] = f"O valor inserido excede o limite máximo de {limites_por_qualificacao[qualificacao]} pontos para esta qualificação."
-                    else:
-                        # Aplica a quantidade correta de pontos conforme especificado pelo usuário
-                        if progressao_valor <= dados['pontos']:
-                            certificados_aprovados_qualificacao = Certificado.query.filter_by(
-                                usuario_id=usuario_id,
-                                aprovado=True,
-                                qualificacao=qualificacao
-                            ).all()
-
-                            # Distribui o valor inserido entre os certificados e atualiza a progressão
-                            for certificado in certificados_aprovados_qualificacao:
-                                if progressao_valor > 0 and certificado.pontos > 0:
-                                    restante = min(progressao_valor, certificado.pontos)
-                                    certificado.progressao += restante
-                                    certificado.pontos -= restante
-                                    progressoes[qualificacao]['pontos'] -= restante
-                                    progressoes[qualificacao]['progressao'] += restante
-                                    progressao_valor -= restante
-                                    db.session.add(certificado)  # Atualiza o certificado no banco de dados
-
-                            # Salva imediatamente após clicar em "Adicionar"
-                            db.session.commit()
-                            flash("Pontos de progressão atualizados com sucesso!", "success")
                 else:
                     # Aplica a quantidade correta de pontos conforme especificado pelo usuário
                     if progressao_valor <= dados['pontos']:
@@ -659,6 +650,7 @@ def progressoes():
             flash("Erro ao atualizar os pontos de progressão.", "danger")
 
     return render_template('progressoes.html', progressoes=progressoes, usuarios=usuarios, usuario_selecionado=usuario_id, errors=errors)
+
 
 
 
