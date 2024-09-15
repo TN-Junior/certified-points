@@ -597,7 +597,7 @@ def progressoes():
             botao_adicionar_key = f'botao_adicionar_{i + 1}'
 
             # Captura a quantidade de pontos que o usuário quer adicionar
-            if botao_adicionar_key in request.form:
+            if botao_adicionar_key in request.form or 'Salvar Alterações' in request.form:
                 progressao_valor = request.form.get(adicionar_key, '0')
 
                 try:
@@ -605,19 +605,35 @@ def progressoes():
                 except ValueError:
                     progressao_valor = 0
 
-                # Impede adição de pontos para outras qualificações enquanto qualificações restritas tiverem pontos
-                if qualificacao not in qualificacoes_restritas and pontos_restritos_restantes > 0:
-                    flash("Preencha as ultimas três qualificações", "danger")
-                    continue
+                # Permitir a adição de pontos para qualificações restritas sem bloqueio
+                if qualificacao in qualificacoes_restritas:
+                    if progressao_valor <= dados['pontos']:
+                        certificados_aprovados_qualificacao = Certificado.query.filter_by(
+                            usuario_id=usuario_id,
+                            aprovado=True,
+                            qualificacao=qualificacao
+                        ).all()
 
-                if progressao_valor > dados['pontos']:
-                    progressoes[qualificacao]['erro'] = True
-                    errors[progressao_key] = "O valor inserido excede o saldo de pontos disponíveis."
-                elif qualificacao in limites_por_qualificacao:
-                    total_progressao = dados['progressao'] + progressao_valor
-                    if total_progressao > limites_por_qualificacao[qualificacao]:
-                        progressoes[qualificacao]['erro'] = True
-                        errors[progressao_key] = f"O valor inserido excede o limite máximo de {limites_por_qualificacao[qualificacao]} pontos para esta qualificação."
+                        # Distribui o valor inserido entre os certificados e atualiza a progressão
+                        for certificado in certificados_aprovados_qualificacao:
+                            if progressao_valor > 0 and certificado.pontos > 0:
+                                restante = min(progressao_valor, certificado.pontos)
+                                certificado.progressao += restante
+                                certificado.pontos -= restante
+                                progressoes[qualificacao]['pontos'] -= restante
+                                progressoes[qualificacao]['progressao'] += restante
+                                progressao_valor -= restante
+                                db.session.add(certificado)  # Atualiza o certificado no banco de dados
+
+                        # Salva imediatamente após clicar em "Adicionar" ou "Salvar Alterações"
+                        db.session.commit()
+                        flash(f"Pontos da qualificação '{qualificacao}' atualizados com sucesso!", "success")
+                    else:
+                        flash("Erro: O valor inserido excede o saldo de pontos disponíveis.", "danger")
+
+                # Bloqueia a adição de pontos para outras qualificações enquanto qualificações restritas tiverem pontos
+                elif qualificacao not in qualificacoes_restritas and pontos_restritos_restantes > 0:
+                    flash("Você deve utilizar todos os pontos das qualificações restritas antes de adicionar pontos em outras qualificações.", "danger")
                 else:
                     # Aplica a quantidade correta de pontos conforme especificado pelo usuário
                     if progressao_valor <= dados['pontos']:
@@ -650,7 +666,6 @@ def progressoes():
             flash("Erro ao atualizar os pontos de progressão.", "danger")
 
     return render_template('progressoes.html', progressoes=progressoes, usuarios=usuarios, usuario_selecionado=usuario_id, errors=errors)
-
 
 
 
