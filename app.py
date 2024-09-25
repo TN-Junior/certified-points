@@ -137,7 +137,6 @@ class UploadForm(FlaskForm):
 
         return True
 
-
 # Funções utilitárias
 def requires_admin(f):
     @wraps(f)
@@ -212,7 +211,8 @@ def calcular_pontos(certificado_data):
 
 def calcular_pontos_cursos_aprovados(usuario_id):
     """
-    Calcula os pontos e horas excedentes dos cursos aprovados de um usuário.
+    Calcula os pontos e horas excedentes dos cursos aprovados de um usuário,
+    incluindo o reconhecimento automático das horas excedentes.
     """
     certificados_aprovados = Certificado.query.filter_by(usuario_id=usuario_id, aprovado=True).all()
     cursos_excedentes = {qualificacao: {'pontos': 0, 'horas_excedentes': 0} for qualificacao in QUALIFICACOES}
@@ -221,10 +221,11 @@ def calcular_pontos_cursos_aprovados(usuario_id):
         cursos_excedentes[certificado.qualificacao]['pontos'] += certificado.pontos
         cursos_excedentes[certificado.qualificacao]['horas_excedentes'] += certificado.horas_excedentes
 
+        # Verifica se há horas excedentes e aplica os pontos automaticamente
         if certificado.qualificacao == 'Cursos, seminários, congressos e oficinas realizados, promovidos, articulados ou admitidos pelo Município do Recife.':
             extra_pontos = (cursos_excedentes[certificado.qualificacao]['horas_excedentes'] // 20) * 2
             cursos_excedentes[certificado.qualificacao]['pontos'] += extra_pontos
-            cursos_excedentes[certificado.qualificacao]['horas_excedentes'] %= 20
+            cursos_excedentes[certificado.qualificacao]['horas_excedentes'] %= 20  # Atualiza as horas excedentes restantes
 
         elif certificado.qualificacao == 'Instrutoria ou Coordenação de cursos promovidos pelo Município do Recife.':
             max_pontos = 10
@@ -571,23 +572,22 @@ def progressoes():
         progressoes[certificado.qualificacao]['progressao'] += certificado.progressao
         progressoes[certificado.qualificacao]['horas_excedentes'] += certificado.horas_excedentes
 
+    # Aplica as horas excedentes para qualificação e calcula os pontos adicionais
+    for qualificacao, dados in progressoes.items():
+        if qualificacao == 'Cursos, seminários, congressos e oficinas realizados, promovidos, articulados ou admitidos pelo Município do Recife.':
+            extra_pontos = (dados['horas_excedentes'] // 20) * 2
+            dados['pontos'] += extra_pontos
+            dados['horas_excedentes'] %= 20  # Atualiza as horas excedentes restantes corretamente
+
+        elif qualificacao == 'Instrutoria ou Coordenação de cursos promovidos pelo Município do Recife.':
+            max_pontos = 10
+            pontos_instrutoria = (dados['horas_excedentes'] // 8) * 2
+            if dados['pontos'] + pontos_instrutoria > max_pontos:
+                pontos_instrutoria = max_pontos - dados['pontos']
+            dados['pontos'] += pontos_instrutoria
+            dados['horas_excedentes'] %= 8
+
     errors = {}
-
-    # Definindo limites e as qualificações que possuem restrições de pontos
-    limites_por_qualificacao = {
-        'Instrutoria ou Coordenação de cursos promovidos pelo Município do Recife.': 10,
-        'Participação em grupos, equipes, comissões e projetos especiais, no âmbito do Município do Recife, formalizados por ato oficial.': 10,
-        'Exercício de cargos comissionados e funções gratificadas, ocupados, exclusivamente, no âmbito do Poder Executivo Municipal.': 15
-    }
-
-    qualificacoes_restritas = [
-        'Instrutoria ou Coordenação de cursos promovidos pelo Município do Recife.',
-        'Participação em grupos, equipes, comissões e projetos especiais, no âmbito do Município do Recife, formalizados por ato oficial.',
-        'Exercício de cargos comissionados e funções gratificadas, ocupados, exclusivamente, no âmbito do Poder Executivo Municipal.'
-    ]
-
-    # Verifica se todas as qualificações restritas têm seus pontos completamente utilizados
-    pontos_restritos_restantes = sum(progressoes[qualificacao]['pontos'] for qualificacao in qualificacoes_restritas)
 
     if request.method == 'POST':
         # Itera sobre cada qualificação para aplicar progressões
@@ -597,7 +597,7 @@ def progressoes():
             botao_adicionar_key = f'botao_adicionar_{i + 1}'
 
             # Captura a quantidade de pontos que o usuário quer adicionar
-            if botao_adicionar_key in request.form or 'Salvar Alterações' in request.form:
+            if botao_adicionar_key in request.form:
                 progressao_valor = request.form.get(adicionar_key, '0')
 
                 try:
@@ -605,58 +605,30 @@ def progressoes():
                 except ValueError:
                     progressao_valor = 0
 
-                # Permitir a adição de pontos para qualificações restritas sem bloqueio
-                if qualificacao in qualificacoes_restritas:
-                    if progressao_valor <= dados['pontos']:
-                        certificados_aprovados_qualificacao = Certificado.query.filter_by(
-                            usuario_id=usuario_id,
-                            aprovado=True,
-                            qualificacao=qualificacao
-                        ).all()
+                if progressao_valor > dados['pontos']:
+                    flash(f"Erro: Não há pontos suficientes disponíveis para {qualificacao}.", "danger")
+                    continue
 
-                        # Distribui o valor inserido entre os certificados e atualiza a progressão
-                        for certificado in certificados_aprovados_qualificacao:
-                            if progressao_valor > 0 and certificado.pontos > 0:
-                                restante = min(progressao_valor, certificado.pontos)
-                                certificado.progressao += restante
-                                certificado.pontos -= restante
-                                progressoes[qualificacao]['pontos'] -= restante
-                                progressoes[qualificacao]['progressao'] += restante
-                                progressao_valor -= restante
-                                db.session.add(certificado)  # Atualiza o certificado no banco de dados
+                # Distribui os pontos entre os certificados dessa qualificação
+                certificados_aprovados_qualificacao = Certificado.query.filter_by(
+                    usuario_id=usuario_id,
+                    aprovado=True,
+                    qualificacao=qualificacao
+                ).all()
 
-                        # Salva imediatamente após clicar em "Adicionar" ou "Salvar Alterações"
-                        db.session.commit()
-                        flash(f"Pontos da qualificação '{qualificacao}' atualizados com sucesso!", "success")
-                    else:
-                        flash("Erro: O valor inserido excede o saldo de pontos disponíveis.", "danger")
+                for certificado in certificados_aprovados_qualificacao:
+                    if progressao_valor > 0 and certificado.pontos > 0:
+                        restante = min(progressao_valor, certificado.pontos)
+                        certificado.progressao += restante
+                        certificado.pontos -= restante
+                        progressoes[qualificacao]['pontos'] -= restante
+                        progressoes[qualificacao]['progressao'] += restante
+                        progressao_valor -= restante
+                        db.session.add(certificado)  # Atualiza o certificado no banco de dados
 
-                # Bloqueia a adição de pontos para outras qualificações enquanto qualificações restritas tiverem pontos
-                elif qualificacao not in qualificacoes_restritas and pontos_restritos_restantes > 0:
-                    flash("Você deve utilizar todos os pontos das qualificações restritas antes de adicionar pontos em outras qualificações.", "danger")
-                else:
-                    # Aplica a quantidade correta de pontos conforme especificado pelo usuário
-                    if progressao_valor <= dados['pontos']:
-                        certificados_aprovados_qualificacao = Certificado.query.filter_by(
-                            usuario_id=usuario_id,
-                            aprovado=True,
-                            qualificacao=qualificacao
-                        ).all()
-
-                        # Distribui o valor inserido entre os certificados e atualiza a progressão
-                        for certificado in certificados_aprovados_qualificacao:
-                            if progressao_valor > 0 and certificado.pontos > 0:
-                                restante = min(progressao_valor, certificado.pontos)
-                                certificado.progressao += restante
-                                certificado.pontos -= restante
-                                progressoes[qualificacao]['pontos'] -= restante
-                                progressoes[qualificacao]['progressao'] += restante
-                                progressao_valor -= restante
-                                db.session.add(certificado)  # Atualiza o certificado no banco de dados
-
-                        # Salva imediatamente após clicar em "Adicionar"
-                        db.session.commit()
-                        flash("Pontos de progressão atualizados com sucesso!", "success")
+                # Salva imediatamente após clicar em "Adicionar"
+                db.session.commit()
+                flash(f"Pontos da qualificação '{qualificacao}' atualizados com sucesso!", "success")
 
         # Atualiza a progressão com os pontos adicionados ao clicar em "Salvar Alterações"
         if 'Salvar Alterações' in request.form and not errors:
@@ -666,10 +638,6 @@ def progressoes():
             flash("Erro ao atualizar os pontos de progressão.", "danger")
 
     return render_template('progressoes.html', progressoes=progressoes, usuarios=usuarios, usuario_selecionado=usuario_id, errors=errors)
-
-
-
-
 
 if __name__ == '__main__':
     with app.app_context():
