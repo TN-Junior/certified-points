@@ -41,6 +41,14 @@ migrate = Migrate(app, db)
 timezone = pytz.timezone('America/Recife')
 scheduler = BackgroundScheduler(timezone=timezone)
 
+# Constantes de limite de pontuação máxima
+MAX_PONTOS_PERIODO = {
+    'Instrutoria ou Coordenação de cursos promovidos pelo Município do Recife.': 10,
+    'Participação em grupos, equipes, comissões e projetos especiais, no âmbito do Município do Recife, formalizados por ato oficial.': 10,
+    'Exercício de cargos comissionados e funções gratificadas, ocupados, exclusivamente, no âmbito do Poder Executivo Municipal.': 15,
+}
+
+
 # Constantes
 QUALIFICACOES = [
     "Cursos, seminários, congressos e oficinas realizados, promovidos, articulados ou admitidos pelo Município do Recife.",
@@ -190,21 +198,21 @@ def calcular_pontos(certificado_data):
     elif qualificacao == 'Mestrado, doutorado e pós-doutorado realizados em instituição pública ou privada, reconhecida pelo MEC.':
         pontos = 30
         horas_excedentes = 0
-    elif qualificacao == 'Instrutoria ou Coordenação de cursos promovidos pelo Município do Recife.':
+    if qualificacao == 'Instrutoria ou Coordenação de cursos promovidos pelo Município do Recife.':
         if horas is not None:
             pontos = (horas // 8) * 2
-            if pontos > 10:
-                pontos = 10
+            if pontos > MAX_PONTOS_PERIODO[qualificacao]:  # Limite máximo
+                pontos = MAX_PONTOS_PERIODO[qualificacao]
             horas_excedentes = horas % 8
     elif qualificacao == 'Participação em grupos, equipes, comissões e projetos especiais, no âmbito do Município do Recife, formalizados por ato oficial.':
         pontos = 5
-        if pontos > 10:
-            pontos = 10
+        if pontos > MAX_PONTOS_PERIODO[qualificacao]:  # Limite máximo
+            pontos = MAX_PONTOS_PERIODO[qualificacao]
     elif qualificacao == 'Exercício de cargos comissionados e funções gratificadas, ocupados, exclusivamente, no âmbito do Poder Executivo Municipal.':
         if tempo is not None:
             pontos = (tempo // 6) * 10
-            if pontos > 15:
-                pontos = 15
+            if pontos > MAX_PONTOS_PERIODO[qualificacao]:  # Limite máximo
+                pontos = MAX_PONTOS_PERIODO[qualificacao]
         horas_excedentes = 0
 
     return pontos, horas_excedentes
@@ -562,54 +570,33 @@ def progressoes():
     else:
         usuario_id = session.get('usuario_logado')
 
-    # Calcula os pontos e horas excedentes dos cursos aprovados do usuário
     certificados_aprovados = Certificado.query.filter_by(usuario_id=usuario_id, aprovado=True).all()
-    progressoes = {qualificacao: {'pontos': 0, 'progressao': 0, 'horas_excedentes': 0} for qualificacao in QUALIFICACOES}
+    progressoes = {qualificacao: {'pontos': 0, 'progressao': 0} for qualificacao in QUALIFICACOES}
 
-    # Preenche os pontos e progressões atuais das qualificações
     for certificado in certificados_aprovados:
         progressoes[certificado.qualificacao]['pontos'] += certificado.pontos
         progressoes[certificado.qualificacao]['progressao'] += certificado.progressao
-        progressoes[certificado.qualificacao]['horas_excedentes'] += certificado.horas_excedentes
-
-    # Aplica as horas excedentes para qualificação e calcula os pontos adicionais
-    for qualificacao, dados in progressoes.items():
-        if qualificacao == 'Cursos, seminários, congressos e oficinas realizados, promovidos, articulados ou admitidos pelo Município do Recife.':
-            extra_pontos = (dados['horas_excedentes'] // 20) * 2
-            dados['pontos'] += extra_pontos
-            dados['horas_excedentes'] %= 20  # Atualiza as horas excedentes restantes corretamente
-
-        elif qualificacao == 'Instrutoria ou Coordenação de cursos promovidos pelo Município do Recife.':
-            max_pontos = 10
-            pontos_instrutoria = (dados['horas_excedentes'] // 8) * 2
-            if dados['pontos'] + pontos_instrutoria > max_pontos:
-                pontos_instrutoria = max_pontos - dados['pontos']
-            dados['pontos'] += pontos_instrutoria
-            dados['horas_excedentes'] %= 8
 
     errors = {}
 
     if request.method == 'POST':
-        # Itera sobre cada qualificação para aplicar progressões
         for i, (qualificacao, dados) in enumerate(progressoes.items()):
-            progressao_key = f'progressao_{i + 1}'
             adicionar_key = f'adicionar_{i + 1}'
             botao_adicionar_key = f'botao_adicionar_{i + 1}'
 
-            # Captura a quantidade de pontos que o usuário quer adicionar
             if botao_adicionar_key in request.form:
-                progressao_valor = request.form.get(adicionar_key, '0')
-
                 try:
-                    progressao_valor = int(progressao_valor)
+                    progressao_valor = int(request.form.get(adicionar_key, '0'))
                 except ValueError:
                     progressao_valor = 0
 
-                if progressao_valor > dados['pontos']:
-                    flash(f"Erro: Não há pontos suficientes disponíveis para {qualificacao}.", "danger")
+                max_pontos = MAX_PONTOS_PERIODO.get(qualificacao, float('inf'))
+                pontos_disponiveis = max_pontos - progressoes[qualificacao]['progressao']
+
+                if progressao_valor > pontos_disponiveis:
+                    flash(f"Erro: Limite de pontos para {qualificacao} foi alcançado. Máximo permitido: {max_pontos} pontos.", "danger")
                     continue
 
-                # Distribui os pontos entre os certificados dessa qualificação
                 certificados_aprovados_qualificacao = Certificado.query.filter_by(
                     usuario_id=usuario_id,
                     aprovado=True,
@@ -624,20 +611,21 @@ def progressoes():
                         progressoes[qualificacao]['pontos'] -= restante
                         progressoes[qualificacao]['progressao'] += restante
                         progressao_valor -= restante
-                        db.session.add(certificado)  # Atualiza o certificado no banco de dados
+                        db.session.add(certificado)
 
-                # Salva imediatamente após clicar em "Adicionar"
                 db.session.commit()
                 flash(f"Pontos da qualificação '{qualificacao}' atualizados com sucesso!", "success")
 
-        # Atualiza a progressão com os pontos adicionados ao clicar em "Salvar Alterações"
         if 'Salvar Alterações' in request.form and not errors:
-            db.session.commit()  # Salva todas as alterações na base de dados
+            db.session.commit()
             flash("Alterações salvas com sucesso!", "success")
         elif errors:
             flash("Erro ao atualizar os pontos de progressão.", "danger")
 
     return render_template('progressoes.html', progressoes=progressoes, usuarios=usuarios, usuario_selecionado=usuario_id, errors=errors)
+
+
+
 
 if __name__ == '__main__':
     with app.app_context():
