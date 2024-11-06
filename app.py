@@ -174,42 +174,45 @@ def parse_date(date_string):
         return None
 
 def calcular_pontos(certificado_data):
+    """
+    Calcula os pontos e horas excedentes com base na qualificação e carga horária.
+    Retorna os pontos calculados e as horas excedentes para salvar no banco.
+    """
     qualificacao = certificado_data['qualificacao']
     horas = certificado_data.get('horas', 0)  # Define 0 se horas for None
     tempo = certificado_data.get('tempo', 0)
     pontos = 0
     horas_excedentes = 0
 
+    # Calcula os pontos e horas excedentes com base na qualificação
     if qualificacao == 'Cursos, seminários, congressos e oficinas realizados, promovidos, articulados ou admitidos pelo Município do Recife.':
         pontos = (horas // 20) * 2
         horas_excedentes = horas % 20
     elif qualificacao == 'Cursos de atualização realizados, promovidos, articulados ou admitidos pelo Município do Recife.':
-        if horas is not None and horas >= 40:
+        if horas >= 40:
             pontos = 5
             horas_excedentes = horas - 40
     elif qualificacao == 'Cursos de aperfeiçoamento realizados, promovidos, articulados ou admitidos pelo Município do Recife.':
-        if horas is not None and horas >= 180:
+        if horas >= 180:
             pontos = 10
             horas_excedentes = horas - 180
     elif qualificacao == 'Cursos de graduação e especialização realizados em instituição pública ou privada, reconhecida pelo MEC.':
-        if horas is not None and horas >= 360:
+        if horas >= 360:
             pontos = 20
             horas_excedentes = horas - 360
     elif qualificacao == 'Mestrado, doutorado e pós-doutorado realizados em instituição pública ou privada, reconhecida pelo MEC.':
         pontos = 30
         horas_excedentes = 0
-    if qualificacao == 'Instrutoria ou Coordenação de cursos promovidos pelo Município do Recife.':
-        if horas is not None:
+    elif qualificacao == 'Instrutoria ou Coordenação de cursos promovidos pelo Município do Recife.':
+        if horas >= 8:
             pontos = (horas // 8) * 2
             if pontos > MAX_PONTOS_PERIODO[qualificacao]:  # Limite máximo
                 pontos = MAX_PONTOS_PERIODO[qualificacao]
             horas_excedentes = horas % 8
     elif qualificacao == 'Participação em grupos, equipes, comissões e projetos especiais, no âmbito do Município do Recife, formalizados por ato oficial.':
         pontos = 5
-        if pontos > MAX_PONTOS_PERIODO[qualificacao]:  # Limite máximo
-            pontos = MAX_PONTOS_PERIODO[qualificacao]
     elif qualificacao == 'Exercício de cargos comissionados e funções gratificadas, ocupados, exclusivamente, no âmbito do Poder Executivo Municipal.':
-        if tempo is not None:
+        if tempo >= 6:
             pontos = (tempo // 6) * 10
             if pontos > MAX_PONTOS_PERIODO[qualificacao]:  # Limite máximo
                 pontos = MAX_PONTOS_PERIODO[qualificacao]
@@ -218,32 +221,51 @@ def calcular_pontos(certificado_data):
     return pontos, horas_excedentes
 
 def calcular_pontos_cursos_aprovados(usuario_id):
-    """
-    Calcula os pontos e horas excedentes dos cursos aprovados de um usuário,
-    incluindo o reconhecimento automático das horas excedentes.
-    """
     certificados_aprovados = Certificado.query.filter_by(usuario_id=usuario_id, aprovado=True).all()
-    cursos_excedentes = {qualificacao: {'pontos': 0, 'horas_excedentes': 0} for qualificacao in QUALIFICACOES}
+    progressoes = {qualificacao: {'pontos': 0, 'progressao': 0, 'horas_excedentes': 0} for qualificacao in QUALIFICACOES}
 
+    # Primeiro, somamos todas as horas excedentes por qualificação
+    horas_acumuladas = {}
     for certificado in certificados_aprovados:
-        cursos_excedentes[certificado.qualificacao]['pontos'] += certificado.pontos
-        cursos_excedentes[certificado.qualificacao]['horas_excedentes'] += certificado.horas_excedentes
+        qualificacao = certificado.qualificacao
+        if qualificacao not in horas_acumuladas:
+            horas_acumuladas[qualificacao] = {'total_horas_excedentes': 0, 'certificados': []}
+        horas_acumuladas[qualificacao]['total_horas_excedentes'] += certificado.horas_excedentes
+        horas_acumuladas[qualificacao]['certificados'].append(certificado)
 
-        # Verifica se há horas excedentes e aplica os pontos automaticamente
-        if certificado.qualificacao == 'Cursos, seminários, congressos e oficinas realizados, promovidos, articulados ou admitidos pelo Município do Recife.':
-            extra_pontos = (cursos_excedentes[certificado.qualificacao]['horas_excedentes'] // 20) * 2
-            cursos_excedentes[certificado.qualificacao]['pontos'] += extra_pontos
-            cursos_excedentes[certificado.qualificacao]['horas_excedentes'] %= 20  # Atualiza as horas excedentes restantes
+    # Agora aplicamos a conversão por qualificação
+    for qualificacao, dados in horas_acumuladas.items():
+        total_horas_excedentes = dados['total_horas_excedentes']
+        certificados = dados['certificados']
+        pontos_adicionais = 0
 
-        elif certificado.qualificacao == 'Instrutoria ou Coordenação de cursos promovidos pelo Município do Recife.':
-            max_pontos = 10
-            pontos_instrutoria = (cursos_excedentes[certificado.qualificacao]['horas_excedentes'] // 8) * 2
-            if cursos_excedentes[certificado.qualificacao]['pontos'] + pontos_instrutoria > max_pontos:
-                pontos_instrutoria = max_pontos - cursos_excedentes[certificado.qualificacao]['pontos']
-            cursos_excedentes[certificado.qualificacao]['pontos'] += pontos_instrutoria
-            cursos_excedentes[certificado.qualificacao]['horas_excedentes'] %= 8
+        if qualificacao == 'Cursos, seminários, congressos e oficinas realizados, promovidos, articulados ou admitidos pelo Município do Recife.':
+            # Converte as horas acumuladas para pontos
+            pontos_adicionais = (total_horas_excedentes // 20) * 2
+            total_horas_excedentes %= 20
 
-    return cursos_excedentes
+        elif qualificacao == 'Instrutoria ou Coordenação de cursos promovidos pelo Município do Recife.':
+            max_pontos = MAX_PONTOS_PERIODO.get(qualificacao, 10)
+            pontos_adicionais = (total_horas_excedentes // 8) * 2
+            if pontos_adicionais > max_pontos:
+                pontos_adicionais = max_pontos
+            total_horas_excedentes %= 8
+
+        # Atualiza pontos e horas nos certificados até o total
+        for certificado in certificados:
+            if pontos_adicionais > 0:
+                certificado.pontos += pontos_adicionais
+                pontos_adicionais = 0  # Define a zero para não duplicar pontos nos demais certificados
+            certificado.horas_excedentes = total_horas_excedentes
+            db.session.add(certificado)
+
+        # Atualiza os pontos e horas totais na progressão
+        progressoes[qualificacao]['pontos'] += sum(cert.pontos for cert in certificados)
+        progressoes[qualificacao]['horas_excedentes'] += total_horas_excedentes
+
+    db.session.commit()
+    return progressoes
+
 
 def hash_password(password):
     salt = os.urandom(16)
@@ -497,6 +519,7 @@ def cursos():
 
     return render_template('cursos.html', cursos=cursos_list)
 
+
 @app.route('/aprovar/<int:certificado_id>', methods=['POST'])
 @requires_admin
 def aprovar_certificado(certificado_id):
@@ -562,34 +585,32 @@ def api_get_mensagens():
 @app.route('/progressoes', methods=['GET', 'POST'])
 @login_required
 def progressoes():
+    # Obtém todos os usuários (excluindo administradores) para a seleção
     usuarios = Usuario.query.filter(Usuario.role != 'admin').all()
-    usuario_id = request.form.get('usuario')
 
-    if usuario_id:
-        usuario_id = int(usuario_id)
-    else:
-        usuario_id = session.get('usuario_logado')
-
-    certificados_aprovados = Certificado.query.filter_by(usuario_id=usuario_id, aprovado=True).all()
-    progressoes = {qualificacao: {'pontos': 0, 'progressao': 0} for qualificacao in QUALIFICACOES}
-
-    for certificado in certificados_aprovados:
-        progressoes[certificado.qualificacao]['pontos'] += certificado.pontos
-        progressoes[certificado.qualificacao]['progressao'] += certificado.progressao
-
+    # Identifica o usuário selecionado ou usa o logado por padrão
+    usuario_id = int(request.form.get('usuario') or session.get('usuario_logado'))
+    
+    # Calcula pontos e progressoes para o usuário selecionado
+    progressoes = calcular_pontos_cursos_aprovados(usuario_id)
+    
+    # Inicializa `errors` como um dicionário vazio para evitar erros no template
     errors = {}
 
     if request.method == 'POST':
+        # Itera sobre as qualificações e verifica os botões de adição de pontos
         for i, (qualificacao, dados) in enumerate(progressoes.items()):
             adicionar_key = f'adicionar_{i + 1}'
             botao_adicionar_key = f'botao_adicionar_{i + 1}'
 
             if botao_adicionar_key in request.form:
                 try:
+                    # Recebe a quantidade de pontos a ser adicionada na progressão
                     progressao_valor = int(request.form.get(adicionar_key, '0'))
                 except ValueError:
                     progressao_valor = 0
 
+                # Verifica se a adição de pontos excede o máximo permitido
                 max_pontos = MAX_PONTOS_PERIODO.get(qualificacao, float('inf'))
                 pontos_disponiveis = max_pontos - progressoes[qualificacao]['progressao']
 
@@ -597,12 +618,16 @@ def progressoes():
                     flash(f"Erro: Limite de pontos para {qualificacao} foi alcançado. Máximo permitido: {max_pontos} pontos.", "danger")
                     continue
 
+                # Consulta os certificados aprovados para o usuário e qualificação
                 certificados_aprovados_qualificacao = Certificado.query.filter_by(
                     usuario_id=usuario_id,
                     aprovado=True,
                     qualificacao=qualificacao
                 ).all()
 
+                pontos_adicionados = 0
+
+                # Atualiza cada certificado com a progressão acumulada
                 for certificado in certificados_aprovados_qualificacao:
                     if progressao_valor > 0 and certificado.pontos > 0:
                         restante = min(progressao_valor, certificado.pontos)
@@ -611,18 +636,34 @@ def progressoes():
                         progressoes[qualificacao]['pontos'] -= restante
                         progressoes[qualificacao]['progressao'] += restante
                         progressao_valor -= restante
-                        db.session.add(certificado)
+                        pontos_adicionados += restante
+                        db.session.add(certificado)  # Adiciona o certificado modificado à sessão
 
+                # Confirma as alterações no banco de dados
                 db.session.commit()
-                flash(f"Pontos da qualificação '{qualificacao}' atualizados com sucesso!", "success")
 
-        if 'Salvar Alterações' in request.form and not errors:
-            db.session.commit()
-            flash("Alterações salvas com sucesso!", "success")
-        elif errors:
-            flash("Erro ao atualizar os pontos de progressão.", "danger")
+                # Mensagem de feedback para o usuário
+                if pontos_adicionados > 0:
+                    flash(f"Pontos da qualificação '{qualificacao}' atualizados com sucesso!", "success")
+                else:
+                    flash(f"Erro ao atualizar pontos para a qualificação '{qualificacao}'.", "danger")
 
-    return render_template('progressoes.html', progressoes=progressoes, usuarios=usuarios, usuario_selecionado=usuario_id, errors=errors)
+        # Recalcula os pontos e progressoes para refletir alterações
+        progressoes = calcular_pontos_cursos_aprovados(usuario_id)
+        print(f"Valores de progressoes após atualização: {progressoes}")  # Saída para depuração
+
+    # Renderiza o template passando `progressoes`, `usuarios`, `errors` e `usuario_selecionado`
+    return render_template(
+        'progressoes.html', 
+        progressoes=progressoes, 
+        usuarios=usuarios,  
+        usuario_selecionado=usuario_id,
+        errors=errors  
+    )
+
+
+
+
 
 
 

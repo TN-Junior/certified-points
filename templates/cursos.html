@@ -13,7 +13,7 @@ Cursos
                 <tr>
                     <th>Curso</th>
                     <th>Pontos</th>
-                    <th>Horas Excedentes</th> <!-- Nova coluna -->
+                    <th>Horas Excedentes</th>
                 </tr>
             </thead>
             <tbody>
@@ -24,7 +24,7 @@ Cursos
                         <input type="text" class="form-control" value="{{ curso.pontos }}" readonly>
                     </td>
                     <td>
-                        <input type="text" class="form-control" value="{{ curso.horas_excedentes }}" readonly> <!-- Exibir horas excedentes -->
+                        <input type="text" class="form-control" value="{{ curso.horas_excedentes }}" readonly>
                     </td>
                 </tr>
                 {% endfor %}

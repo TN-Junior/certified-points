@@ -31,7 +31,7 @@ Progressões
                 </select>
             </div>
 
-            <!-- Campo para exibir a matrícula do usuário selecionado, inicialmente oculto -->
+            <!-- Campo para exibir a matrícula do usuário selecionado -->
             <div class="form-group" id="matricula-group" style="display: none;">
                 <label for="matricula">Matrícula do Usuário</label>
                 <input type="text" id="matricula" class="form-control" readonly>
@@ -53,18 +53,17 @@ Progressões
                         <td>
                             <!-- Campo de Pontos agora é somente leitura para exibir os pontos do usuário -->
                             <input type="text" class="form-control" 
-                                   name="pontos_{{ loop.index }}" 
-                                   value="{{ dados.pontos }}" 
-                                   readonly>
+                                name="pontos_{{ loop.index }}" 
+                                value="{{ dados.pontos }}" 
+                                readonly>
                         </td>
                         <td>
                             <input type="text" class="form-control {% if errors['progressao_' ~ loop.index] %}is-invalid{% endif %}" 
-                                   name="progressao_{{ loop.index }}" 
-                                   value="{{ dados.progressao }}" 
-                                   inputmode="numeric" 
-                                   pattern="[0-9]*" 
-                                   oninput="this.value = this.value.replace(/[^0-9]/g, '')" 
-                                   readonly>
+                                name="progressao_{{ loop.index }}" 
+                                value="{{ dados.progressao }}" 
+                                inputmode="numeric" 
+                                pattern="[0-9]*" 
+                                readonly>
                             {% if errors['progressao_' ~ loop.index] %}
                                 <div class="invalid-feedback">
                                     {{ errors['progressao_' ~ loop.index] }}
@@ -74,10 +73,10 @@ Progressões
                         <td>
                             <!-- Campo para adicionar a quantidade de pontos a ser usada -->
                             <input type="number" class="form-control d-inline-block w-50" 
-                                   name="adicionar_{{ loop.index }}" 
-                                   min="0" 
-                                   max="{{ dados.pontos }}" 
-                                   placeholder="Pontos">
+                                name="adicionar_{{ loop.index }}" 
+                                min="0" 
+                                max="{{ dados.pontos }}" 
+                                placeholder="Pontos">
                             <button type="submit" class="btn btn-primary d-inline-block" name="botao_adicionar_{{ loop.index }}" value="{{ qualificacao }}">
                                 Adicionar
                             </button>
@@ -115,7 +114,12 @@ function updateMatricula() {
 }
 
 // Chama updateMatricula ao carregar a página para exibir a matrícula se já houver um usuário selecionado
-window.onload = updateMatricula;
+window.onload = function() {
+    const usuarioSelecionado = "{{ usuario_selecionado }}";
+    if (usuarioSelecionado) {
+        updateMatricula();
+    }
+};
 
 // Função para ocultar as mensagens de erro após 5 segundos
 window.setTimeout(function() {
