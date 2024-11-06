@@ -642,6 +642,9 @@ def progressoes():
                 # Confirma as alterações no banco de dados
                 db.session.commit()
 
+                # Depuração: imprime os valores atualizados de progressoes
+                print(f"Após adição, progressoes para {qualificacao}: {progressoes[qualificacao]}")
+
                 # Mensagem de feedback para o usuário
                 if pontos_adicionados > 0:
                     flash(f"Pontos da qualificação '{qualificacao}' atualizados com sucesso!", "success")
@@ -650,7 +653,7 @@ def progressoes():
 
         # Recalcula os pontos e progressoes para refletir alterações
         progressoes = calcular_pontos_cursos_aprovados(usuario_id)
-        print(f"Valores de progressoes após atualização: {progressoes}")  # Saída para depuração
+        print(f"Valores de progressoes recalculados: {progressoes}")  # Depuração
 
     # Renderiza o template passando `progressoes`, `usuarios`, `errors` e `usuario_selecionado`
     return render_template(
@@ -660,6 +663,7 @@ def progressoes():
         usuario_selecionado=usuario_id,
         errors=errors  
     )
+
 
 
 
