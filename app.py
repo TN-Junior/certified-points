@@ -209,6 +209,9 @@ def calcular_pontos(certificado_data):
             if pontos > MAX_PONTOS_PERIODO[qualificacao]:  # Limite máximo
                 pontos = MAX_PONTOS_PERIODO[qualificacao]
             horas_excedentes = horas % 8
+        else:
+            horas_excedentes = horas  # Armazena horas menores que 8 diretamente como horas excedentes
+
     elif qualificacao == 'Participação em grupos, equipes, comissões e projetos especiais, no âmbito do Município do Recife, formalizados por ato oficial.':
         pontos = 5
     elif qualificacao == 'Exercício de cargos comissionados e funções gratificadas, ocupados, exclusivamente, no âmbito do Poder Executivo Municipal.':
@@ -219,6 +222,7 @@ def calcular_pontos(certificado_data):
         horas_excedentes = 0
 
     return pontos, horas_excedentes
+
 
 def calcular_pontos_cursos_aprovados(usuario_id):
     certificados_aprovados = Certificado.query.filter_by(usuario_id=usuario_id, aprovado=True).all()
@@ -355,6 +359,11 @@ def upload():
         file = form.certificate.data
         filename = secure_filename(file.filename)
 
+        # Se já existe um certificado para essa qualificação, acumule as horas excedentes
+        ultimo_certificado = Certificado.query.filter_by(usuario_id=usuario_id, qualificacao=form.qualificacao.data, aprovado=True).order_by(Certificado.timestamp.desc()).first()
+        if ultimo_certificado and ultimo_certificado.horas_excedentes:
+            horas_excedentes += ultimo_certificado.horas_excedentes
+
         upload_folder = app.config['UPLOAD_FOLDER']
         if not os.path.exists(upload_folder):
             os.makedirs(upload_folder)
@@ -384,6 +393,7 @@ def upload():
         flash('Certificado enviado com sucesso! Aguardando aprovação.')
         return redirect(url_for('certificados'))
     return render_template('upload.html', form=form)
+
 
 @app.route('/certificados')
 @login_required
