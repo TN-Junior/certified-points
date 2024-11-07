@@ -51,27 +51,25 @@ Progressões
                     <tr>
                         <td>{{ qualificacao }}</td>
                         <td>
-                            <!-- Campo de Pontos agora é somente leitura para exibir os pontos do usuário -->
                             <input type="text" class="form-control" 
                                 name="pontos_{{ loop.index }}" 
                                 value="{{ dados.pontos }}" 
                                 readonly>
                         </td>
                         <td>
-                            <input type="text" class="form-control {% if errors['progressao_' ~ loop.index] %}is-invalid{% endif %}" 
+                            <input type="text" class="form-control {% if errors.get('progressao_' ~ loop.index) %}is-invalid{% endif %}" 
                                 name="progressao_{{ loop.index }}" 
-                                value="{{ dados.progressao }}" 
+                                value="{{ dados.get('progressao', 0) }}" 
                                 inputmode="numeric" 
                                 pattern="[0-9]*" 
                                 readonly>
-                            {% if errors['progressao_' ~ loop.index] %}
+                            {% if errors.get('progressao_' ~ loop.index) %}
                                 <div class="invalid-feedback">
                                     {{ errors['progressao_' ~ loop.index] }}
                                 </div>
                             {% endif %}
                         </td>
                         <td>
-                            <!-- Campo para adicionar a quantidade de pontos a ser usada -->
                             <input type="number" class="form-control d-inline-block w-50" 
                                 name="adicionar_{{ loop.index }}" 
                                 min="0" 

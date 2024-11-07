@@ -224,7 +224,7 @@ def calcular_pontos_cursos_aprovados(usuario_id):
     certificados_aprovados = Certificado.query.filter_by(usuario_id=usuario_id, aprovado=True).all()
     progressoes = {qualificacao: {'pontos': 0, 'progressao': 0, 'horas_excedentes': 0} for qualificacao in QUALIFICACOES}
 
-    # Primeiro, somamos todas as horas excedentes por qualificação
+    # Primeiro, somamos todas as horas e progressoes por qualificação
     horas_acumuladas = {}
     for certificado in certificados_aprovados:
         qualificacao = certificado.qualificacao
@@ -232,18 +232,19 @@ def calcular_pontos_cursos_aprovados(usuario_id):
             horas_acumuladas[qualificacao] = {'total_horas_excedentes': 0, 'certificados': []}
         horas_acumuladas[qualificacao]['total_horas_excedentes'] += certificado.horas_excedentes
         horas_acumuladas[qualificacao]['certificados'].append(certificado)
+        
+        # Adiciona a progressão acumulada do certificado diretamente
+        progressoes[qualificacao]['progressao'] += certificado.progressao
 
-    # Agora aplicamos a conversão por qualificação
+    # Agora aplicamos a conversão de horas acumuladas por qualificação para pontos adicionais
     for qualificacao, dados in horas_acumuladas.items():
         total_horas_excedentes = dados['total_horas_excedentes']
         certificados = dados['certificados']
         pontos_adicionais = 0
 
         if qualificacao == 'Cursos, seminários, congressos e oficinas realizados, promovidos, articulados ou admitidos pelo Município do Recife.':
-            # Converte as horas acumuladas para pontos
             pontos_adicionais = (total_horas_excedentes // 20) * 2
             total_horas_excedentes %= 20
-
         elif qualificacao == 'Instrutoria ou Coordenação de cursos promovidos pelo Município do Recife.':
             max_pontos = MAX_PONTOS_PERIODO.get(qualificacao, 10)
             pontos_adicionais = (total_horas_excedentes // 8) * 2
@@ -259,12 +260,14 @@ def calcular_pontos_cursos_aprovados(usuario_id):
             certificado.horas_excedentes = total_horas_excedentes
             db.session.add(certificado)
 
-        # Atualiza os pontos e horas totais na progressão
+        # Atualiza os pontos totais para a qualificação
         progressoes[qualificacao]['pontos'] += sum(cert.pontos for cert in certificados)
         progressoes[qualificacao]['horas_excedentes'] += total_horas_excedentes
 
+    # Salva todas as alterações
     db.session.commit()
     return progressoes
+
 
 
 def hash_password(password):
@@ -653,6 +656,7 @@ def progressoes():
 
         # Recalcula os pontos e progressoes para refletir alterações
         progressoes = calcular_pontos_cursos_aprovados(usuario_id)
+        print(progressoes)
         print(f"Valores de progressoes recalculados: {progressoes}")  # Depuração
 
     # Renderiza o template passando `progressoes`, `usuarios`, `errors` e `usuario_selecionado`
